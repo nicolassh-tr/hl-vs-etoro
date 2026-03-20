@@ -17,8 +17,8 @@
     <div style="max-width:420px;margin:3rem auto;padding:0 1rem;font-family:system-ui,sans-serif;color:#475569;line-height:1.5">
       <p style="font-weight:700;color:#0f172a">Loading HL vs eToro…</p>
       <p style="font-size:14px">If this text never disappears, press <strong>F12</strong> → <strong>Console</strong> and fix any red errors (often a blocked script or network).</p>
-      <p style="font-size:14px"><strong>No <code>?proxy=</code>:</strong> Hyperliquid calls the public API from your browser. eToro tries the chart API first, then <strong>falls back</strong> to legacy JSON if GitHub Pages is blocked by CORS.</p>
-      <p style="font-size:14px">For the most reliable eToro + strict WiFi, use a proxy: <code style="word-break:break-all">?proxy=https://YOUR_SUBDOMAIN.workers.dev</code> — <a href="https://github.com/nicolassh-tr/hl-vs-etoro/blob/main/DEPLOY.md" style="color:#6366f1">DEPLOY.md</a></p>
+      <p style="font-size:14px"><strong>No <code>?proxy=</code>:</strong> Hyperliquid uses the public API from your browser. eToro tries live APIs, then <strong>cached-feed.json</strong> (refreshed by GitHub Actions), then data <strong>saved in this browser</strong> from a previous successful load.</p>
+      <p style="font-size:14px">Optional proxy: <code style="word-break:break-all">?proxy=https://YOUR_SUBDOMAIN.workers.dev</code> — <a href="https://github.com/nicolassh-tr/hl-vs-etoro/blob/main/DEPLOY.md" style="color:#6366f1">DEPLOY.md</a></p>
     </div>
   </div>
   <noscript><p style="padding:2rem;text-align:center">Enable JavaScript to run this app.</p></noscript>
@@ -46,6 +46,9 @@ function fetchErrorHint(err) {
   return m;
 }
 let API_ROUTE_PREFIX = null;
+/** Same-origin snapshot from GitHub Actions (see scripts/build-cached-feed.mjs). */
+let CACHED_ETORO_FEED = null;
+const etoroStaleHints = new Set();
 function repoBasePath() {
   if (typeof window === "undefined") return "";
   let p = window.location.pathname;
@@ -82,6 +85,47 @@ async function resolveDataApiPrefix() {
     const h = await fetchWithTimeout(root + "/api/health", { method: "GET" }, 6000);
     if (h.ok) API_ROUTE_PREFIX = root + "/api";
   } catch (e) {}
+}
+async function resolveCachedEtoroFeed() {
+  CACHED_ETORO_FEED = null;
+  if (getExplicitProxy()) return;
+  const root = appOriginPath();
+  if (!root) return;
+  try {
+    const r = await fetchWithTimeout(root + "/cached-feed.json", { method: "GET", cache: "no-store" }, 12000);
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j && j.etoro && typeof j.etoro === "object") CACHED_ETORO_FEED = j;
+  } catch (e) {}
+}
+function readEtoroLocalCache(name) {
+  try {
+    const raw = window.localStorage.getItem("hlvs_etoro_cache_" + name);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (p && Array.isArray(p.bars) && p.bars.length) return p.bars;
+  } catch (e) {}
+  return null;
+}
+function writeEtoroLocalCache(name, bars) {
+  try {
+    window.localStorage.setItem("hlvs_etoro_cache_" + name, JSON.stringify({ savedAt: Date.now(), bars }));
+  } catch (e) {}
+}
+function takeStaleEtoroBars(name) {
+  if (CACHED_ETORO_FEED) {
+    const arr = CACHED_ETORO_FEED.etoro[name];
+    if (Array.isArray(arr) && arr.length) {
+      etoroStaleHints.add(name + " · snapshot from GitHub (cached-feed.json)");
+      return arr;
+    }
+  }
+  const ls = readEtoroLocalCache(name);
+  if (ls) {
+    etoroStaleHints.add(name + " · last good load in this browser");
+    return ls;
+  }
+  return null;
 }
 function hlUrl() {
   return API_ROUTE_PREFIX != null ? API_ROUTE_PREFIX + "/hl" : "https://api.hyperliquid.xyz/info";
@@ -147,23 +191,34 @@ async function fetchEtoroFeed(name) {
     if (!Array.isArray(data)) throw new Error("eToro " + name + " proxy: " + JSON.stringify(data).slice(0, 120));
     return data;
   }
-  const instId = getEtoroBrowserInstrumentId(name);
-  if (instId) {
-    try {
-      const url = buildEtoroCandleBrowserUrl(instId);
-      const res = await fetchWithTimeout(url);
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const json = await res.json();
-      const arr = normalizeEtoroCandleApiJson(json);
-      if (arr.length) return arr;
-    } catch (e) {
-      /* CORS / network / empty — use legacy below (typical on github.io without ?proxy=) */
+  const tryLive = async () => {
+    const instId = getEtoroBrowserInstrumentId(name);
+    if (instId) {
+      try {
+        const url = buildEtoroCandleBrowserUrl(instId);
+        const res = await fetchWithTimeout(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const json = await res.json();
+        const arr = normalizeEtoroCandleApiJson(json);
+        if (arr.length) return arr;
+      } catch (e) {
+        /* CORS / network / empty — try legacy */
+      }
     }
+    const res = await fetchWithTimeout(etoroLegacyUrl(name));
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error("eToro " + name + " legacy: " + JSON.stringify(data).slice(0, 120));
+    return data;
+  };
+  try {
+    const live = await tryLive();
+    writeEtoroLocalCache(name, live);
+    return live;
+  } catch (firstErr) {
+    const stale = takeStaleEtoroBars(name);
+    if (stale) return stale;
+    throw firstErr;
   }
-  const res = await fetchWithTimeout(etoroLegacyUrl(name));
-  const data = await res.json();
-  if (!Array.isArray(data)) throw new Error("eToro " + name + " legacy: " + JSON.stringify(data).slice(0, 120));
-  return data;
 }
 function fmt(v) { if (v == null) return "—"; return v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 3 : 4); }
 function safeMin(arr) { return arr.reduce((m, v) => v < m ? v : m, arr[0]); }
@@ -422,7 +477,9 @@ function HLvsToro() {
   }, []);
   const load = async () => {
     setLoading(true); setError(null); setLoadWarning(null);
+    etoroStaleHints.clear();
     await resolveDataApiPrefix();
+    await resolveCachedEtoroFeed();
     try {
       const settled = await Promise.allSettled([
         fetchHL(), fetchEToroNQ(), fetchHLGold(), fetchEToroGold(), fetchHLOil(), fetchEToroOil(), fetchHLNatGas(), fetchEToroNatGas()
@@ -437,6 +494,10 @@ function HLvsToro() {
         setError(fetchErrorHint(failed[0].reason));
       } else if (failed.length > 0) {
         setLoadWarning("Some feeds did not load on this network (WiFi often blocks crypto/API domains). What loaded is shown below; try mobile data for full data.");
+      }
+      if (etoroStaleHints.size > 0) {
+        const extra = "eToro using saved/cached data for: " + [...etoroStaleHints].join("; ") + ".";
+        setLoadWarning((w) => (w ? w + " " : "") + extra);
       }
     } catch (err) { setError(fetchErrorHint(err)); }
     setLoading(false);

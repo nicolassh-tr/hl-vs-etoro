@@ -13,6 +13,8 @@ Everything below uses **GitHub** in the browser and **Cloudflare** in the browse
 5. Your site URL (example):  
    `https://<username>.github.io/hl-vs-etoro/`
 
+**eToro without Cloudflare:** each deploy runs `scripts/build-cached-feed.mjs` on GitHub’s servers and publishes **`cached-feed.json`** next to `index.html`. Your browser loads it from the **same origin** (no CORS). The workflow also runs on a **schedule** (4× daily UTC) and **`workflow_dispatch`** so you can refresh the snapshot manually under **Actions → Deploy GitHub Pages → Run workflow**.
+
 ---
 
 ## 2. Cloudflare Worker (proxy — same role as old Base44 functions)

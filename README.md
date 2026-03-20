@@ -41,7 +41,7 @@ If **work email / IT policy** blocks Cloudflare, use a **personal** Cloudflare a
 **What works on Pages alone**
 
 - **Hyperliquid** — the browser calls `api.hyperliquid.xyz` directly (when your network allows it).
-- **eToro** — without `?proxy=`, the app **tries** `candle.etoro.com` in the browser when an instrument id is set (oil defaults to **17**); on GitHub Pages that usually hits **CORS**, so it **automatically falls back** to legacy **`/functions/…`** JSON (`ETORO_DEFAULT_FUNCTIONS_BASE` in `index.html`). Legacy may still fail on strict WiFi or if those URLs change.
+- **eToro** — without `?proxy=`, the app tries **live** chart + legacy URLs, then **`cached-feed.json`** (built on **GitHub Actions** and served from the same site—no CORS), then **localStorage** from a previous successful load. See **`scripts/build-cached-feed.mjs`** and **Deploy GitHub Pages** workflow (scheduled + manual runs).
 
 **Recommended with Pages: Cloudflare Worker** (free tier is enough)
 
