@@ -45,8 +45,13 @@ The Worker proxies `/hl`, `/etoro/*`, and `/health` so the browser only talks to
 
 ```bash
 cd worker
-npx wrangler deploy
+npx wrangler@3 login
+npx wrangler@3 deploy
 ```
+
+Or on Windows, from repo root: `powershell -ExecutionPolicy Bypass -File .\scripts\deploy-worker.ps1` (needs [Node.js](https://nodejs.org/) installed).
+
+Details: **`worker/README.md`**.
 
 In the Worker dashboard (or `wrangler.toml` `[vars]`), set:
 
