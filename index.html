@@ -16,16 +16,11 @@
   <div id="root"></div>
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
-
 const HL_COLOR = "#00e5a0";
 const ET_COLOR = "#6366f1";
 const GREEN = "#10b981";
 const RED = "#ef4444";
-
-function fmt(v) {
-  if (v == null) return "—";
-  return v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 3 : 4);
-}
+function fmt(v) { if (v == null) return "—"; return v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 3 : 4); }
 function safeMin(arr) { return arr.reduce((m, v) => v < m ? v : m, arr[0]); }
 function safeMax(arr) { return arr.reduce((m, v) => v > m ? v : m, arr[0]); }
 function roundMin(t) { return Math.round(t / 60000) * 60000; }
@@ -36,41 +31,18 @@ function trimToOverlap(a, b) {
   const start = Math.max(aN[0].t, bN[0].t);
   const end = Math.min(aN[aN.length - 1].t, bN[bN.length - 1].t);
   if (start > end) return { a, b };
-  return {
-    a: aN.filter(c => c.t >= start && c.t <= end),
-    b: bN.filter(c => c.t >= start && c.t <= end)
-  };
+  return { a: aN.filter(c => c.t >= start && c.t <= end), b: bN.filter(c => c.t >= start && c.t <= end) };
 }
-
-function LineChart({ candles, color, width, height }) {
-  if (!candles.length) return null;
-  const prices = candles.map(c => c.close);
-  const min = safeMin(prices), max = safeMax(prices);
-  const range = max - min || 1;
-  const pts = prices.map((p, i) => {
-    const x = (i / (prices.length - 1)) * width;
-    const y = height - ((p - min) / range) * (height - 4) - 2;
-    return `${x},${y}`;
-  }).join(" ");
-  return (
-    <svg width={width} height={height} style={{ display: "block" }}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
   const [wrapW, setWrapW] = useState(800);
   const [hovered, setHovered] = useState(null);
-
   useEffect(() => {
     const ro = new ResizeObserver(([e]) => setWrapW(Math.floor(e.contentRect.width)));
     if (wrapRef.current) ro.observe(wrapRef.current);
     return () => ro.disconnect();
   }, []);
-
   const PAD_L = 62, PAD_R = 10, PAD_T = 12, PAD_B = 32;
   const W = wrapW - PAD_L - PAD_R;
   const H = height - PAD_T - PAD_B;
@@ -86,7 +58,6 @@ function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
   const yTicks = Array.from({ length: yTickCount }, (_, i) => lo + (rangeP / (yTickCount - 1)) * i);
   const xTickCount = 6;
   const xTicks = Array.from({ length: xTickCount }, (_, i) => Math.round(i * (aCandles.length - 1) / (xTickCount - 1)));
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !aCandles.length || !bCandles.length) return;
@@ -127,7 +98,6 @@ function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
       ctx.fillStyle = bColor; ctx.fillText("HL:  " + fmtPrice(bCandles[hovered]?.close ?? 0), tooltipX+10, PAD_T+42);
     }
   }, [wrapW, height, aCandles, bCandles, hovered, aColor, bColor]);
-
   return (
     <div ref={wrapRef} style={{ width: "100%", lineHeight: 0 }}>
       <canvas ref={canvasRef} style={{ display: "block", cursor: "crosshair" }}
@@ -142,7 +112,6 @@ function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
     </div>
   );
 }
-
 function SkewSynopsis({ instruments }) {
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "12px 14px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
@@ -181,16 +150,12 @@ function SkewSynopsis({ instruments }) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
                 <div style={{ padding: "8px 10px", borderRight: "1px solid #f1f5f9" }}>
                   <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Live</div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: posLive ? GREEN : RED, lineHeight: 1 }}>
-                    {liveSpread != null ? (liveSpread >= 0 ? "+" : "") + liveSpread.toFixed(decimals) : "—"}
-                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: posLive ? GREEN : RED, lineHeight: 1 }}>{liveSpread != null ? (liveSpread >= 0 ? "+" : "") + liveSpread.toFixed(decimals) : "—"}</div>
                   {livePct != null && <div style={{ fontSize: 10, fontWeight: 700, color: posLive ? GREEN : RED }}>{livePct >= 0 ? "+" : ""}{livePct.toFixed(4)}%</div>}
                 </div>
                 <div style={{ padding: "8px 10px" }}>
                   <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>2h Avg</div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: posAvg ? GREEN : RED, lineHeight: 1 }}>
-                    {posAvg ? "+" : ""}{avgSpread.toFixed(decimals)}
-                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: posAvg ? GREEN : RED, lineHeight: 1 }}>{posAvg ? "+" : ""}{avgSpread.toFixed(decimals)}</div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: posAvg ? GREEN : RED }}>{posAvg ? "+" : ""}{avgPct.toFixed(4)}%</div>
                 </div>
               </div>
@@ -201,7 +166,6 @@ function SkewSynopsis({ instruments }) {
     </div>
   );
 }
-
 function SectionHeader({ label }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0 8px" }}>
@@ -210,7 +174,6 @@ function SectionHeader({ label }) {
     </div>
   );
 }
-
 function InstrumentPanel({ aLabel, aTag, aColor, aCandles, aSymbol, bLabel, bTag, bColor, bCandles, width, isMobile }) {
   const { a: eToroTrimmed, b: hlTrimmed } = trimToOverlap(bCandles, aCandles);
   const eFinal = eToroTrimmed.length ? eToroTrimmed : bCandles;
@@ -250,12 +213,11 @@ function InstrumentPanel({ aLabel, aTag, aColor, aCandles, aSymbol, bLabel, bTag
           <OverlayChart aCandles={eFinal} bCandles={hFinal} aColor={bColor} bColor={aColor} height={isMobile ? 200 : 300} />
         </div>
       ) : (
-        <div style={{ ...card, textAlign: "center", padding: "14px", color: "#94a3b8", fontSize: 12 }}>⚠️ HL has no NQ100 product — overlay unavailable</div>
+        <div style={{ ...card, textAlign: "center", padding: "14px", color: "#94a3b8", fontSize: 12 }}>⚠️ No overlay available</div>
       )}
     </>
   );
 }
-
 async function fetchHL() {
   const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
   const res = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:XYZ100", interval: "1m", startTime: start, endTime: now } }) });
@@ -308,7 +270,6 @@ async function fetchEToroNatGas() {
   if (!Array.isArray(data)) throw new Error("eToro NatGas API error: " + JSON.stringify(data).slice(0,100));
   return data;
 }
-
 function HLvsToro() {
   const [hlCandles, setHlCandles] = useState([]);
   const [etNQCandles, setEtNQCandles] = useState([]);
@@ -322,13 +283,11 @@ function HLvsToro() {
   const [error, setError] = useState(null);
   const containerRef = useRef(null);
   const [width, setWidth] = useState(390);
-
   useEffect(() => {
     const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
-
   const load = async () => {
     setLoading(true); setError(null);
     try {
@@ -342,27 +301,22 @@ function HLvsToro() {
     } catch (e) { setError([e.me](https://e.me)ssage); }
     setLoading(false);
   };
-
   useEffect(() => { load(); }, []);
-
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", flexDirection: "column", gap: 14, background: "#f8fafc" }}>
-      <div style={{ width: 32, height: 32, border: `3px solid ${HL_COLOR}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      <div style={{ width: 32, height: 32, border: "3px solid #00e5a0", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
       <div style={{ color: "#64748b", fontSize: 13 }}>Loading live data...</div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
-
   if (error) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", flexDirection: "column", gap: 12, background: "#f8fafc" }}>
       <div style={{ fontSize: 26 }}>⚠️</div>
-      <div style={{ color: RED, fontWeight: 700, fontSize: 13 }}>{error}</div>
-      <button onClick={load} style={{ padding: "9px 18px", background: HL_COLOR, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}>Retry</button>
+      <div style={{ color: "#ef4444", fontWeight: 700, fontSize: 13 }}>{error}</div>
+      <button onClick={load} style={{ padding: "9px 18px", background: "#00e5a0", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}>Retry</button>
     </div>
   );
-
   const isMobile = width < 600;
-
   return (
     <div ref={containerRef} style={{ background: "#f8fafc", minHeight: "100vh", fontFamily: "'Inter',system-ui,sans-serif", color: "#0f172a" }}>
       <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "10px 14px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -387,15 +341,12 @@ function HLvsToro() {
         <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlOilCandles} aSymbol="xyz:CL" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etOilCandles} width={width} isMobile={isMobile} />
         <SectionHeader label="🔥 Natural Gas" />
         <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlNatGasCandles} aSymbol="xyz:NATGAS" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etNatGasCandles} width={width} isMobile={isMobile} />
-        <div style={{ textAlign: "center", fontSize: 10, color: "#94a3b8", paddingBottom: 20, marginTop: 4 }}>
-          Hyperliquid API · eToro Candle API · 1-min · Live
-        </div>
+        <div style={{ textAlign: "center", fontSize: 10, color: "#94a3b8", paddingBottom: 20, marginTop: 4 }}>Hyperliquid API · eToro Candle API · 1-min · Live</div>
       </div>
     </div>
   );
 }
-
-    ReactDOM.createRoot(document.getElementById('root')).render(<HLvsToro />);
+ReactDOM.createRoot(document.getElementById('root')).render(<HLvsToro />);
   </script>
 </body>
 </html>
