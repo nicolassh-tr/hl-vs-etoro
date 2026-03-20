@@ -1,0 +1,21 @@
+# Run manually: Actions → "Deploy Cloudflare Worker" → Run workflow
+# Repo → Settings → Secrets → Actions → add:
+#   CLOUDFLARE_API_TOKEN  (Workers Edit)
+#   CLOUDFLARE_ACCOUNT_ID (Cloudflare dashboard sidebar)
+
+name: Deploy Cloudflare Worker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          command: deploy

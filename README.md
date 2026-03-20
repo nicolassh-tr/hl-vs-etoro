@@ -15,6 +15,10 @@ This hits `candle.etoro.com` directly (CLI, no CORS). Your static site still nee
 
 ---
 
+**Deploy end-to-end:** see **[DEPLOY.md](./DEPLOY.md)** (GitHub Pages + optional Worker).
+
+---
+
 ## Free hosting (no paid subscription)
 
 | Piece | Cost | What it does |
