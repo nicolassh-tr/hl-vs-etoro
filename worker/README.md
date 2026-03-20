@@ -1,13 +1,33 @@
 # Cloudflare Worker proxy
 
-Deploy once, then point GitHub Pages at it with `?proxy=https://<your-subdomain>.workers.dev`.
+Replaces the old **Base44** pattern: your app calls **this** URL; the Worker fetches Hyperliquid + eToro server-side.
 
-## Prerequisites
+## Deploy without installing anything locally
 
-- [Node.js LTS](https://nodejs.org/) (includes `npx`)
-- Free [Cloudflare](https://dash.cloudflare.com/) account
+Use **GitHub Actions** (Wrangler runs on GitHub’s servers). See **[../DEPLOY.md](../DEPLOY.md)** — section **2. Cloudflare Worker**.
 
-## Deploy
+Summary:
+
+1. Cloudflare: API token + Account ID  
+2. GitHub repo: **Settings → Secrets** → `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`  
+3. **Actions → Deploy Cloudflare Worker → Run workflow**
+
+## After deploy
+
+Smoke test (replace `YOUR_WORKER` with your `*.workers.dev` origin, no trailing slash):
+
+- `https://YOUR_WORKER/health` → `ok`
+- `https://YOUR_WORKER/etoro/oil` → JSON array of candles
+
+## GitHub Pages
+
+`https://<you>.github.io/hl-vs-etoro/?proxy=https://YOUR_WORKER`
+
+---
+
+### Optional: deploy from your own computer
+
+Only if you have **Node.js** installed:
 
 ```bash
 cd worker
@@ -15,32 +35,4 @@ npx wrangler@3 login
 npx wrangler@3 deploy
 ```
 
-Wrangler prints a URL like **`https://hl-vs-etoro-proxy.<your-subdomain>.workers.dev`**.
-
-`wrangler.toml` already sets **`ETORO_INSTRUMENT_OIL=17`** so **oil** uses `candle.etoro.com` server-side. Add `ETORO_INSTRUMENT_NQ`, etc. under `[vars]` or in the dashboard when you have IDs.
-
-## Smoke test (after deploy)
-
-Replace `YOUR_WORKER` with your `*.workers.dev` origin (no trailing slash):
-
-```text
-https://YOUR_WORKER/health
-https://YOUR_WORKER/etoro/oil
-```
-
-`/etoro/oil` should return a **JSON array** of candles.
-
-## Use with GitHub Pages
-
-1. Enable Pages on the repo (branch `main`, `/`).
-2. Open:
-
-   `https://<you>.github.io/hl-vs-etoro/?proxy=https://YOUR_WORKER`
-
-3. Or persist:
-
-   ```js
-   localStorage.setItem("hlvs_proxy", "https://YOUR_WORKER");
-   ```
-
-Reload. The app will use `/hl` and `/etoro/*` on the Worker instead of calling Hyperliquid / eToro directly from the browser.
+Or: `scripts/deploy-worker.ps1` from the repo root.

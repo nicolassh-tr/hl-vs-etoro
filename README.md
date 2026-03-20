@@ -26,7 +26,7 @@ This hits `candle.etoro.com` directly (CLI, no CORS). Your static site still nee
 | **[GitHub Pages](https://pages.github.com/)** | Free for public repos | Serves `index.html` at `you.github.io/repo-name` |
 | **[Cloudflare Workers](https://developers.cloudflare.com/workers/platform/pricing/)** | Free tier (limits apply) | Small proxy so eToro/Hyperliquid calls run **server-side** (needed for eToro candles + some WiFi) |
 
-You need a **free GitHub account** and a **free Cloudflare account** to sign up—no paid plan required for typical personal use. The Worker uses `npx wrangler deploy` (CLI); Cloudflare’s free tier includes a `*.workers.dev` URL.
+You need a **free GitHub account** and a **free Cloudflare account**—no paid plan required for typical personal use. **Deploy the Worker from GitHub Actions** (no Node.js on your PC); see **[DEPLOY.md](./DEPLOY.md)**. Cloudflare’s free tier includes a `*.workers.dev` URL.
 
 **Totally static option (no Worker):** Pages only → $0, but eToro may rely on legacy `/functions/…` URLs in the browser and can break on strict networks or CORS/WiFi.
 
@@ -47,20 +47,9 @@ You need a **free GitHub account** and a **free Cloudflare account** to sign up�
 
 The Worker proxies `/hl`, `/etoro/*`, and `/health` so the browser only talks to **your** `*.workers.dev` host; the Worker fetches Hyperliquid and eToro server-side.
 
-```bash
-cd worker
-npx wrangler@3 login
-npx wrangler@3 deploy
-```
+**Deploy the Worker without installing anything locally:** follow **[DEPLOY.md](./DEPLOY.md)** (GitHub Actions + Cloudflare API token + repo secrets). Optional CLI steps: **`worker/README.md`**.
 
-Or on Windows, from repo root: `powershell -ExecutionPolicy Bypass -File .\scripts\deploy-worker.ps1` (needs [Node.js](https://nodejs.org/) installed).
-
-Details: **`worker/README.md`**.
-
-In the Worker dashboard (or `wrangler.toml` `[vars]`), set:
-
-- `ETORO_INSTRUMENT_OIL=17` (and `ETORO_INSTRUMENT_NQ`, `_GOLD`, `_NATGAS` when you have IDs from eToro’s Network tab)
-- Optional: `ETORO_CANDLE_HOST`, `ETORO_FUNCTIONS_BASE` (see `.env.example` concepts)
+Oil is preconfigured in `wrangler.toml` `[vars]`. In the Cloudflare dashboard you can add more instruments (`ETORO_INSTRUMENT_NQ`, `_GOLD`, `_NATGAS`, …) when you have IDs from eToro’s Network tab, or override `ETORO_CANDLE_HOST` / `ETORO_FUNCTIONS_BASE` (see `.env.example` concepts).
 
 Then open:
 
