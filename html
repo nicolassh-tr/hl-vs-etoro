@@ -16,12 +16,10 @@
   <div id="root"></div>
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
-
 const HL_COLOR = "#00e5a0";
 const ET_COLOR = "#6366f1";
 const GREEN = "#10b981";
 const RED = "#ef4444";
-
 function fmt(v) {
   if (v == null) return "—";
   return v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 3 : 4);
@@ -41,7 +39,6 @@ function trimToOverlap(a, b) {
     b: bN.filter(c => c.t >= start && c.t <= end)
   };
 }
-
 function LineChart({ candles, color, width, height }) {
   if (!candles.length) return null;
   const prices = candles.map(c => c.close);
@@ -58,19 +55,16 @@ function LineChart({ candles, color, width, height }) {
     </svg>
   );
 }
-
 function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
   const [wrapW, setWrapW] = useState(800);
   const [hovered, setHovered] = useState(null);
-
   useEffect(() => {
     const ro = new ResizeObserver(([e]) => setWrapW(Math.floor(e.contentRect.width)));
     if (wrapRef.current) ro.observe(wrapRef.current);
     return () => ro.disconnect();
   }, []);
-
   const PAD_L = 62, PAD_R = 10, PAD_T = 12, PAD_B = 32;
   const W = wrapW - PAD_L - PAD_R;
   const H = height - PAD_T - PAD_B;
@@ -86,7 +80,6 @@ function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
   const yTicks = Array.from({ length: yTickCount }, (_, i) => lo + (rangeP / (yTickCount - 1)) * i);
   const xTickCount = 6;
   const xTicks = Array.from({ length: xTickCount }, (_, i) => Math.round(i * (aCandles.length - 1) / (xTickCount - 1)));
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !aCandles.length || !bCandles.length) return;
@@ -127,7 +120,6 @@ function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
       ctx.fillStyle = bColor; ctx.fillText("HL:  " + fmtPrice(bCandles[hovered]?.close ?? 0), tooltipX+10, PAD_T+42);
     }
   }, [wrapW, height, aCandles, bCandles, hovered, aColor, bColor]);
-
   return (
     <div ref={wrapRef} style={{ width: "100%", lineHeight: 0 }}>
       <canvas ref={canvasRef} style={{ display: "block", cursor: "crosshair" }}
@@ -142,7 +134,6 @@ function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
     </div>
   );
 }
-
 function SkewSynopsis({ instruments }) {
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "12px 14px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
@@ -201,7 +192,6 @@ function SkewSynopsis({ instruments }) {
     </div>
   );
 }
-
 function SectionHeader({ label }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0 8px" }}>
@@ -210,7 +200,6 @@ function SectionHeader({ label }) {
     </div>
   );
 }
-
 function InstrumentPanel({ aLabel, aTag, aColor, aCandles, aSymbol, bLabel, bTag, bColor, bCandles, width, isMobile }) {
   const { a: eToroTrimmed, b: hlTrimmed } = trimToOverlap(bCandles, aCandles);
   const eFinal = eToroTrimmed.length ? eToroTrimmed : bCandles;
@@ -255,7 +244,6 @@ function InstrumentPanel({ aLabel, aTag, aColor, aCandles, aSymbol, bLabel, bTag
     </>
   );
 }
-
 async function fetchHL() {
   const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
   const res = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:XYZ100", interval: "1m", startTime: start, endTime: now } }) });
@@ -308,7 +296,6 @@ async function fetchEToroNatGas() {
   if (!Array.isArray(data)) throw new Error("eToro NatGas API error: " + JSON.stringify(data).slice(0,100));
   return data;
 }
-
 function HLvsToro() {
   const [hlCandles, setHlCandles] = useState([]);
   const [etNQCandles, setEtNQCandles] = useState([]);
@@ -322,13 +309,11 @@ function HLvsToro() {
   const [error, setError] = useState(null);
   const containerRef = useRef(null);
   const [width, setWidth] = useState(390);
-
   useEffect(() => {
     const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
-
   const load = async () => {
     setLoading(true); setError(null);
     try {
@@ -342,9 +327,7 @@ function HLvsToro() {
     } catch (e) { setError([e.me](https://e.me)ssage); }
     setLoading(false);
   };
-
   useEffect(() => { load(); }, []);
-
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", flexDirection: "column", gap: 14, background: "#f8fafc" }}>
       <div style={{ width: 32, height: 32, border: `3px solid ${HL_COLOR}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
@@ -352,7 +335,6 @@ function HLvsToro() {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
-
   if (error) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", flexDirection: "column", gap: 12, background: "#f8fafc" }}>
       <div style={{ fontSize: 26 }}>⚠️</div>
@@ -360,9 +342,7 @@ function HLvsToro() {
       <button onClick={load} style={{ padding: "9px 18px", background: HL_COLOR, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}>Retry</button>
     </div>
   );
-
   const isMobile = width < 600;
-
   return (
     <div ref={containerRef} style={{ background: "#f8fafc", minHeight: "100vh", fontFamily: "'Inter',system-ui,sans-serif", color: "#0f172a" }}>
       <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "10px 14px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -394,7 +374,6 @@ function HLvsToro() {
     </div>
   );
 }
-
     ReactDOM.createRoot(document.getElementById('root')).render(<HLvsToro />);
   </script>
 </body>
