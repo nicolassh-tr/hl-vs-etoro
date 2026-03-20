@@ -2,47 +2,76 @@
 
 Dashboard comparing Hyperliquid and eToro prices.
 
-## eToro data sources
+## Free hosting (no paid subscription)
 
-### 1. Official chart API (Vercel `/api` or Worker)
+| Piece | Cost | What it does |
+|--------|------|----------------|
+| **[GitHub Pages](https://pages.github.com/)** | Free for public repos | Serves `index.html` at `you.github.io/repo-name` |
+| **[Cloudflare Workers](https://developers.cloudflare.com/workers/platform/pricing/)** | Free tier (limits apply) | Small proxy so eToro/Hyperliquid calls run **server-side** (needed for eToro candles + some WiFi) |
 
-Same as **www.etoro.com** in DevTools:
+You need a **free GitHub account** and a **free Cloudflare account** to sign up—no paid plan required for typical personal use. The Worker uses `npx wrangler deploy` (CLI); Cloudflare’s free tier includes a `*.workers.dev` URL.
 
-`GET https://candle.etoro.com/candles/asc.json/OneMinute/2/{instrumentId}?client_request_id={uuid}`
+**Totally static option (no Worker):** Pages only → $0, but eToro may rely on legacy `/functions/…` URLs in the browser and can break on strict networks or CORS/WiFi.
 
-The proxy normalizes the JSON to the candle array the UI expects.
+---
 
-- **CORS** on `candle.etoro.com` allows **`https://www.etoro.com`** only, so the **browser** cannot call it from this app’s origin. Use **`/api/etoro/*`** on Vercel or the **Worker** (`?proxy=`) so the **server** fetches candles.
-- **Oil** defaults to instrument **17** (from your Network capture). For NQ, Gold, NatGas, open each chart on eToro, find the same candle URL pattern, and set in Vercel / Worker:
+## Host on GitHub Pages (no Vercel)
 
-  - `ETORO_INSTRUMENT_NQ`
-  - `ETORO_INSTRUMENT_GOLD`
-  - `ETORO_INSTRUMENT_OIL` (optional; default `17`)
-  - `ETORO_INSTRUMENT_NATGAS`
+1. Repo **Settings → Pages** → Source: branch **`main`**, folder **`/ (root)`** → Save.
+2. Your app URL: **`https://<your-username>.github.io/hl-vs-etoro/`** (e.g. `nicolassh-tr.github.io/hl-vs-etoro`).
 
-Optional: `ETORO_CANDLE_HOST` (default `https://candle.etoro.com`).
+**What works on Pages alone**
 
-### 2. Legacy `/functions/…` JSON (fallback)
+- **Hyperliquid** — the browser calls `api.hyperliquid.xyz` directly (when your network allows it).
+- **eToro** — `candle.etoro.com` **cannot** be called from `github.io` (CORS is limited to `www.etoro.com`).  
+  Without a proxy, the app falls back to **direct** requests to the legacy **`/functions/…`** JSON URLs (same as `ETORO_DEFAULT_FUNCTIONS_BASE` in `index.html`). That may work on some networks and fail on others (e.g. strict WiFi).
 
-If **no** instrument ID is configured for a symbol, `/api/etoro/{name}` proxies:
+**Recommended with Pages: Cloudflare Worker** (free tier is enough)
 
-`{ETORO_FUNCTIONS_BASE}/functions/etoroCandles` (and gold / oil / natgas names).  
-Default base is the earlier integration host.
+The Worker proxies `/hl`, `/etoro/*`, and `/health` so the browser only talks to **your** `*.workers.dev` host; the Worker fetches Hyperliquid and eToro server-side.
 
-### Why Hyperliquid loads more easily
+```bash
+cd worker
+npx wrangler deploy
+```
 
-**Hyperliquid** serves **`api.hyperliquid.xyz`** to any origin. **eToro candles** require a **same-origin or server-side** fetch.
+In the Worker dashboard (or `wrangler.toml` `[vars]`), set:
 
-## Deploy (Vercel)
+- `ETORO_INSTRUMENT_OIL=17` (and `ETORO_INSTRUMENT_NQ`, `_GOLD`, `_NATGAS` when you have IDs from eToro’s Network tab)
+- Optional: `ETORO_CANDLE_HOST`, `ETORO_FUNCTIONS_BASE` (see `.env.example` concepts)
 
-1. Import this repo.
-2. Set **`ETORO_INSTRUMENT_*`** for each market you want from **candle.etoro.com** (oil works with defaults on redeploy).
-3. Redeploy. Open the `*.vercel.app` URL so `/api/health` and `/api/etoro/*` are used.
+Then open:
 
-## GitHub Pages (no `/api`)
+`https://<you>.github.io/hl-vs-etoro/?proxy=https://<your-worker>.workers.dev`
 
-Use a **Worker** + `?proxy=` (see `worker/`), or rely on **browser-direct** legacy `/functions/…` URLs via `?etoroBase=` / `localStorage` / `ETORO_FUNCTIONS_BASE` in `index.html` — not the official candle API (CORS).
+To skip the query string every time:
+
+```js
+localStorage.setItem("hlvs_proxy", "https://<your-worker>.workers.dev");
+```
+
+Reload the site.
+
+---
+
+## eToro data (technical)
+
+### Official chart API
+
+`GET https://candle.etoro.com/candles/asc.json/OneMinute/2/{instrumentId}?client_request_id=…`
+
+Used **inside the Worker** (or any server proxy), not from the browser on GitHub Pages.
+
+### Legacy `/functions/…` JSON
+
+Fallback when an instrument ID isn’t set for the Worker route, or for **browser-direct** mode on Pages.
+
+---
+
+## Optional: `api/` folder
+
+The **`api/`** directory is for hosts that run **Node serverless** routes (e.g. if you ever use another platform). **GitHub Pages does not run it.** You can ignore `api/` if you only use Pages + Worker.
 
 ## WiFi
 
-Prefer Vercel or the Worker so the browser only hits **your** deployment.
+If HL or eToro fail on office WiFi, the Worker (or mobile data) usually fixes it because your browser only calls **your** proxy URL.
