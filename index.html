@@ -20,6 +20,23 @@ const HL_COLOR = "#00e5a0";
 const ET_COLOR = "#6366f1";
 const GREEN = "#10b981";
 const RED = "#ef4444";
+const FETCH_TIMEOUT_MS = 28000;
+function fetchWithTimeout(url, init = {}, ms = FETCH_TIMEOUT_MS) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(tid));
+}
+function fetchErrorHint(err) {
+  const m = (err && err.message) || String(err);
+  const blocked =
+    m === "Failed to fetch" ||
+    /networkerror|load failed|aborted|abort/i.test(m) ||
+    (err && err.name === "AbortError");
+  if (blocked) {
+    return "Could not reach the data APIs. Office or home WiFi often blocks domains like api.hyperliquid.xyz or *.base44.app (firewall, DNS filter, or TLS inspection). Mobile data usually works — try that, another network, or ask IT to allow those hosts.";
+  }
+  return m;
+}
 function fmt(v) { if (v == null) return "—"; return v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 3 : 4); }
 function safeMin(arr) { return arr.reduce((m, v) => v < m ? v : m, arr[0]); }
 function safeMax(arr) { return arr.reduce((m, v) => v > m ? v : m, arr[0]); }
@@ -220,52 +237,52 @@ function InstrumentPanel({ aLabel, aTag, aColor, aCandles, aSymbol, bLabel, bTag
 }
 async function fetchHL() {
   const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
-  const res = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:XYZ100", interval: "1m", startTime: start, endTime: now } }) });
+  const res = await fetchWithTimeout("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:XYZ100", interval: "1m", startTime: start, endTime: now } }) });
   const raw = await res.json();
   if (!raw || !Array.isArray(raw)) return [];
   return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
 }
 async function fetchEToroNQ() {
-  const res = await fetch("https://sidekick-c26b0845.base44.app/functions/etoroCandles");
+  const res = await fetchWithTimeout("https://sidekick-c26b0845.base44.app/functions/etoroCandles");
   const data = await res.json();
   if (!Array.isArray(data)) throw new Error("eToro NQ API error: " + JSON.stringify(data).slice(0,100));
   return data;
 }
 async function fetchHLGold() {
   const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
-  const res = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:GOLD", interval: "1m", startTime: start, endTime: now } }) });
+  const res = await fetchWithTimeout("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:GOLD", interval: "1m", startTime: start, endTime: now } }) });
   const raw = await res.json();
   if (!raw || !Array.isArray(raw)) return [];
   return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
 }
 async function fetchEToroGold() {
-  const res = await fetch("https://sidekick-c26b0845.base44.app/functions/etoroGoldCandles");
+  const res = await fetchWithTimeout("https://sidekick-c26b0845.base44.app/functions/etoroGoldCandles");
   const data = await res.json();
   if (!Array.isArray(data)) throw new Error("eToro Gold API error: " + JSON.stringify(data).slice(0,100));
   return data;
 }
 async function fetchHLOil() {
   const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
-  const res = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:CL", interval: "1m", startTime: start, endTime: now } }) });
+  const res = await fetchWithTimeout("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:CL", interval: "1m", startTime: start, endTime: now } }) });
   const raw = await res.json();
   if (!raw || !Array.isArray(raw)) return [];
   return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
 }
 async function fetchEToroOil() {
-  const res = await fetch("https://sidekick-c26b0845.base44.app/functions/etoroOilCandles");
+  const res = await fetchWithTimeout("https://sidekick-c26b0845.base44.app/functions/etoroOilCandles");
   const data = await res.json();
   if (!Array.isArray(data)) throw new Error("eToro Oil API error: " + JSON.stringify(data).slice(0,100));
   return data;
 }
 async function fetchHLNatGas() {
   const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
-  const res = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:NATGAS", interval: "1m", startTime: start, endTime: now } }) });
+  const res = await fetchWithTimeout("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:NATGAS", interval: "1m", startTime: start, endTime: now } }) });
   const raw = await res.json();
   if (!raw || !Array.isArray(raw)) return [];
   return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
 }
 async function fetchEToroNatGas() {
-  const res = await fetch("https://sidekick-c26b0845.base44.app/functions/etoroNatGasCandles");
+  const res = await fetchWithTimeout("https://sidekick-c26b0845.base44.app/functions/etoroNatGasCandles");
   const data = await res.json();
   if (!Array.isArray(data)) throw new Error("eToro NatGas API error: " + JSON.stringify(data).slice(0,100));
   return data;
@@ -281,6 +298,7 @@ function HLvsToro() {
   const [etNatGasCandles, setEtNatGasCandles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loadWarning, setLoadWarning] = useState(null);
   const containerRef = useRef(null);
   const [width, setWidth] = useState(390);
   useEffect(() => {
@@ -289,16 +307,23 @@ function HLvsToro() {
     return () => ro.disconnect();
   }, []);
   const load = async () => {
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setLoadWarning(null);
     try {
-      const [hl, etNQ, hlGold, etGold, hlOil, etOil, hlNatGas, etNatGas] = await Promise.all([
+      const settled = await Promise.allSettled([
         fetchHL(), fetchEToroNQ(), fetchHLGold(), fetchEToroGold(), fetchHLOil(), fetchEToroOil(), fetchHLNatGas(), fetchEToroNatGas()
       ]);
-      setHlCandles(hl); setEtNQCandles(etNQ);
-      setHlGoldCandles(hlGold); setEtGoldCandles(etGold);
-      setHlOilCandles(hlOil); setEtOilCandles(etOil);
-      setHlNatGasCandles(hlNatGas); setEtNatGasCandles(etNatGas);
-    } catch (err) { setError(err.message); }
+      const v = (i, fallback = []) => settled[i].status === "fulfilled" ? settled[i].value : fallback;
+      setHlCandles(v(0)); setEtNQCandles(v(1));
+      setHlGoldCandles(v(2)); setEtGoldCandles(v(3));
+      setHlOilCandles(v(4)); setEtOilCandles(v(5));
+      setHlNatGasCandles(v(6)); setEtNatGasCandles(v(7));
+      const failed = settled.filter(r => r.status === "rejected");
+      if (failed.length === settled.length) {
+        setError(fetchErrorHint(failed[0].reason));
+      } else if (failed.length > 0) {
+        setLoadWarning("Some feeds did not load on this network (WiFi often blocks crypto/API domains). What loaded is shown below; try mobile data for full data.");
+      }
+    } catch (err) { setError(fetchErrorHint(err)); }
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -327,6 +352,11 @@ function HLvsToro() {
         <button onClick={load} style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🔄 Refresh</button>
       </div>
       <div style={{ padding: "12px 8px", maxWidth: 1400, margin: "0 auto" }}>
+        {loadWarning && (
+          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e", borderRadius: 10, padding: "10px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>
+            {loadWarning}
+          </div>
+        )}
         <SkewSynopsis instruments={[
           { label: "NQ100",  icon: "📈", etCandles: etNQCandles,     hlCandles: hlCandles },
           { label: "Gold",   icon: "🥇", etCandles: etGoldCandles,   hlCandles: hlGoldCandles },
