@@ -41,8 +41,7 @@ If **work email / IT policy** blocks Cloudflare, use a **personal** Cloudflare a
 **What works on Pages alone**
 
 - **Hyperliquid** — the browser calls `api.hyperliquid.xyz` directly (when your network allows it).
-- **eToro** — `candle.etoro.com` **cannot** be called from `github.io` (CORS is limited to `www.etoro.com`).  
-  Without a proxy, the app falls back to **direct** requests to the legacy **`/functions/…`** JSON URLs (same as `ETORO_DEFAULT_FUNCTIONS_BASE` in `index.html`). That may work on some networks and fail on others (e.g. strict WiFi).
+- **eToro** — without `?proxy=`, the app **tries** `candle.etoro.com` in the browser when an instrument id is set (oil defaults to **17**); on GitHub Pages that usually hits **CORS**, so it **automatically falls back** to legacy **`/functions/…`** JSON (`ETORO_DEFAULT_FUNCTIONS_BASE` in `index.html`). Legacy may still fail on strict WiFi or if those URLs change.
 
 **Recommended with Pages: Cloudflare Worker** (free tier is enough)
 

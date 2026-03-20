@@ -17,9 +17,8 @@
     <div style="max-width:420px;margin:3rem auto;padding:0 1rem;font-family:system-ui,sans-serif;color:#475569;line-height:1.5">
       <p style="font-weight:700;color:#0f172a">Loading HL vs eToro…</p>
       <p style="font-size:14px">If this text never disappears, press <strong>F12</strong> → <strong>Console</strong> and fix any red errors (often a blocked script or network).</p>
-      <p style="font-size:14px">The app tries <strong>candle.etoro.com</strong> in the browser for oil (id 17). If eToro is blank, CORS may be blocking — use a <strong>Cloudflare Worker</strong> and add:</p>
-      <p style="font-size:13px;background:#f1f5f9;padding:10px;border-radius:8px;word-break:break-all"><code>?proxy=https://YOUR_SUBDOMAIN.workers.dev</code></p>
-      <p style="font-size:13px"><a href="https://github.com/nicolassh-tr/hl-vs-etoro/blob/main/DEPLOY.md" style="color:#6366f1">Deploy steps (DEPLOY.md)</a></p>
+      <p style="font-size:14px"><strong>No <code>?proxy=</code>:</strong> Hyperliquid calls the public API from your browser. eToro tries the chart API first, then <strong>falls back</strong> to legacy JSON if GitHub Pages is blocked by CORS.</p>
+      <p style="font-size:14px">For the most reliable eToro + strict WiFi, use a proxy: <code style="word-break:break-all">?proxy=https://YOUR_SUBDOMAIN.workers.dev</code> — <a href="https://github.com/nicolassh-tr/hl-vs-etoro/blob/main/DEPLOY.md" style="color:#6366f1">DEPLOY.md</a></p>
     </div>
   </div>
   <noscript><p style="padding:2rem;text-align:center">Enable JavaScript to run this app.</p></noscript>
@@ -42,7 +41,7 @@ function fetchErrorHint(err) {
     /networkerror|load failed|aborted|abort/i.test(m) ||
     (err && err.name === "AbortError");
   if (blocked) {
-    return "Could not reach the data APIs. On GitHub Pages add ?proxy=https://YOUR.worker.dev (Cloudflare Worker — see DEPLOY.md). WiFi may block api.hyperliquid.xyz or eToro; try mobile data.";
+    return "Could not reach the data APIs. WiFi may block api.hyperliquid.xyz or eToro; try mobile data. Optional: ?proxy=https://YOUR.worker.dev (see DEPLOY.md).";
   }
   return m;
 }
@@ -88,8 +87,8 @@ function hlUrl() {
   return API_ROUTE_PREFIX != null ? API_ROUTE_PREFIX + "/hl" : "https://api.hyperliquid.xyz/info";
 }
 /**
- * eToro feeds (no proxy): browser calls candle.etoro.com directly when an instrument ID is set.
- * CORS often blocks this from github.io — then use ?proxy= Worker or legacy /functions/ fallback.
+ * eToro feeds (no proxy): when an instrument ID is set, try candle.etoro.com in the browser, then legacy /functions/ if that fails (e.g. CORS on github.io).
+ * Optional ?proxy= Worker for reliable candles + HL on strict networks.
  * Override IDs: ?etoroId_oil=17 &etoroId_nq=… or localStorage hlvs_etoro_id_oil etc.
  */
 const ETORO_CANDLE_HOST_BROWSER = "https://candle.etoro.com";
@@ -150,12 +149,16 @@ async function fetchEtoroFeed(name) {
   }
   const instId = getEtoroBrowserInstrumentId(name);
   if (instId) {
-    const url = buildEtoroCandleBrowserUrl(instId);
-    const res = await fetchWithTimeout(url);
-    const json = await res.json();
-    const arr = normalizeEtoroCandleApiJson(json);
-    if (arr.length) return arr;
-    throw new Error("eToro candle API returned 0 bars (" + name + ")");
+    try {
+      const url = buildEtoroCandleBrowserUrl(instId);
+      const res = await fetchWithTimeout(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const json = await res.json();
+      const arr = normalizeEtoroCandleApiJson(json);
+      if (arr.length) return arr;
+    } catch (e) {
+      /* CORS / network / empty — use legacy below (typical on github.io without ?proxy=) */
+    }
   }
   const res = await fetchWithTimeout(etoroLegacyUrl(name));
   const data = await res.json();
