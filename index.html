@@ -17,7 +17,7 @@
     <div style="max-width:420px;margin:3rem auto;padding:0 1rem;font-family:system-ui,sans-serif;color:#475569;line-height:1.5">
       <p style="font-weight:700;color:#0f172a">Loading HL vs eToro…</p>
       <p style="font-size:14px">If this text never disappears, press <strong>F12</strong> → <strong>Console</strong> and fix any red errors (often a blocked script or network).</p>
-      <p style="font-size:14px">On <strong>GitHub Pages</strong> you need a <strong>Cloudflare Worker</strong> for eToro candles: add to the URL:</p>
+      <p style="font-size:14px">The app tries <strong>candle.etoro.com</strong> in the browser for oil (id 17). If eToro is blank, CORS may be blocking — use a <strong>Cloudflare Worker</strong> and add:</p>
       <p style="font-size:13px;background:#f1f5f9;padding:10px;border-radius:8px;word-break:break-all"><code>?proxy=https://YOUR_SUBDOMAIN.workers.dev</code></p>
       <p style="font-size:13px"><a href="https://github.com/nicolassh-tr/hl-vs-etoro/blob/main/DEPLOY.md" style="color:#6366f1">Deploy steps (DEPLOY.md)</a></p>
     </div>
@@ -88,12 +88,12 @@ function hlUrl() {
   return API_ROUTE_PREFIX != null ? API_ROUTE_PREFIX + "/hl" : "https://api.hyperliquid.xyz/info";
 }
 /**
- * eToro: official chart API is https://candle.etoro.com/candles/asc.json/OneMinute/2/{instrumentId}
- * (see Network on www.etoro.com). It only allows Origin https://www.etoro.com, so this app calls it
- * from Vercel /api/etoro/* (or your Worker). Oil defaults to instrument 17. Set ETORO_INSTRUMENT_*
- * in Vercel for NQ / Gold / NatGas (IDs from the same Network tab). Without /api, browser falls back
- * to legacy /functions/* URLs (etoroBase / ETORO_FUNCTIONS_BASE).
+ * eToro feeds (no proxy): browser calls candle.etoro.com directly when an instrument ID is set.
+ * CORS often blocks this from github.io — then use ?proxy= Worker or legacy /functions/ fallback.
+ * Override IDs: ?etoroId_oil=17 &etoroId_nq=… or localStorage hlvs_etoro_id_oil etc.
  */
+const ETORO_CANDLE_HOST_BROWSER = "https://candle.etoro.com";
+const ETORO_BROWSER_INSTRUMENT_DEFAULT = { nq: "", gold: "", oil: "17", natgas: "" };
 const ETORO_FUNCTION_FILE = {
   nq: "etoroCandles",
   gold: "etoroGoldCandles",
@@ -113,11 +113,54 @@ function getEtoroFunctionsBase() {
   if (c) return c.replace(/\/$/, "");
   return ETORO_DEFAULT_FUNCTIONS_BASE;
 }
-function etoroUrl(name) {
-  if (API_ROUTE_PREFIX != null) return API_ROUTE_PREFIX + "/etoro/" + name;
+function getEtoroBrowserInstrumentId(key) {
+  try {
+    const q = new URLSearchParams(window.location.search).get("etoroId_" + key);
+    if (q && q.trim()) return q.trim();
+    const ls = window.localStorage.getItem("hlvs_etoro_id_" + key);
+    if (ls && ls.trim()) return ls.trim();
+  } catch (e) {}
+  const d = ETORO_BROWSER_INSTRUMENT_DEFAULT[key];
+  return d != null && String(d).trim() ? String(d).trim() : "";
+}
+function etoroLegacyUrl(name) {
   const base = getEtoroFunctionsBase();
-  const file = ETORO_FUNCTION_FILE[name];
-  return base + "/functions/" + file;
+  return base + "/functions/" + ETORO_FUNCTION_FILE[name];
+}
+function normalizeEtoroCandleApiJson(json) {
+  if (!json || !Array.isArray(json.Candles) || json.Candles.length === 0) return [];
+  const inner = json.Candles[0].Candles;
+  if (!Array.isArray(inner)) return [];
+  return inner.map(c => {
+    const t = new Date(c.FromDate).getTime();
+    return { t, time: new Date(t).toISOString().slice(11, 16), open: Number(c.Open), high: Number(c.High), low: Number(c.Low), close: Number(c.Close) };
+  });
+}
+function buildEtoroCandleBrowserUrl(instrumentId) {
+  const reqId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(36).slice(2);
+  const host = ETORO_CANDLE_HOST_BROWSER.replace(/\/$/, "");
+  return host + "/candles/asc.json/OneMinute/2/" + instrumentId + "?client_request_id=" + encodeURIComponent(reqId);
+}
+async function fetchEtoroFeed(name) {
+  if (API_ROUTE_PREFIX != null) {
+    const res = await fetchWithTimeout(API_ROUTE_PREFIX + "/etoro/" + name);
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error("eToro " + name + " proxy: " + JSON.stringify(data).slice(0, 120));
+    return data;
+  }
+  const instId = getEtoroBrowserInstrumentId(name);
+  if (instId) {
+    const url = buildEtoroCandleBrowserUrl(instId);
+    const res = await fetchWithTimeout(url);
+    const json = await res.json();
+    const arr = normalizeEtoroCandleApiJson(json);
+    if (arr.length) return arr;
+    throw new Error("eToro candle API returned 0 bars (" + name + ")");
+  }
+  const res = await fetchWithTimeout(etoroLegacyUrl(name));
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error("eToro " + name + " legacy: " + JSON.stringify(data).slice(0, 120));
+  return data;
 }
 function fmt(v) { if (v == null) return "—"; return v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 3 : 4); }
 function safeMin(arr) { return arr.reduce((m, v) => v < m ? v : m, arr[0]); }
@@ -330,12 +373,7 @@ async function fetchHL() {
   if (!raw || !Array.isArray(raw)) return [];
   return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
 }
-async function fetchEToroNQ() {
-  const res = await fetchWithTimeout(etoroUrl("nq"));
-  const data = await res.json();
-  if (!Array.isArray(data)) throw new Error("eToro NQ API error: " + JSON.stringify(data).slice(0,100));
-  return data;
-}
+async function fetchEToroNQ() { return fetchEtoroFeed("nq"); }
 async function fetchHLGold() {
   const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
   const res = await fetchWithTimeout(hlUrl(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:GOLD", interval: "1m", startTime: start, endTime: now } }) });
@@ -343,12 +381,7 @@ async function fetchHLGold() {
   if (!raw || !Array.isArray(raw)) return [];
   return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
 }
-async function fetchEToroGold() {
-  const res = await fetchWithTimeout(etoroUrl("gold"));
-  const data = await res.json();
-  if (!Array.isArray(data)) throw new Error("eToro Gold API error: " + JSON.stringify(data).slice(0,100));
-  return data;
-}
+async function fetchEToroGold() { return fetchEtoroFeed("gold"); }
 async function fetchHLOil() {
   const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
   const res = await fetchWithTimeout(hlUrl(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:CL", interval: "1m", startTime: start, endTime: now } }) });
@@ -356,12 +389,7 @@ async function fetchHLOil() {
   if (!raw || !Array.isArray(raw)) return [];
   return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
 }
-async function fetchEToroOil() {
-  const res = await fetchWithTimeout(etoroUrl("oil"));
-  const data = await res.json();
-  if (!Array.isArray(data)) throw new Error("eToro Oil API error: " + JSON.stringify(data).slice(0,100));
-  return data;
-}
+async function fetchEToroOil() { return fetchEtoroFeed("oil"); }
 async function fetchHLNatGas() {
   const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
   const res = await fetchWithTimeout(hlUrl(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:NATGAS", interval: "1m", startTime: start, endTime: now } }) });
@@ -369,12 +397,7 @@ async function fetchHLNatGas() {
   if (!raw || !Array.isArray(raw)) return [];
   return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
 }
-async function fetchEToroNatGas() {
-  const res = await fetchWithTimeout(etoroUrl("natgas"));
-  const data = await res.json();
-  if (!Array.isArray(data)) throw new Error("eToro NatGas API error: " + JSON.stringify(data).slice(0,100));
-  return data;
-}
+async function fetchEToroNatGas() { return fetchEtoroFeed("natgas"); }
 function HLvsToro() {
   const [hlCandles, setHlCandles] = useState([]);
   const [etNQCandles, setEtNQCandles] = useState([]);
