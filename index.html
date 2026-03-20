@@ -33,7 +33,7 @@ function fetchErrorHint(err) {
     /networkerror|load failed|aborted|abort/i.test(m) ||
     (err && err.name === "AbortError");
   if (blocked) {
-    return "Could not reach the data APIs. Your WiFi is likely blocking api.hyperliquid.xyz or *.base44.app. Fix: deploy this repo on Vercel (same-origin /api proxy — see README), or use a Cloudflare Worker from worker/ with ?proxy=YOUR_WORKER_URL. Mobile data often works without changes.";
+    return "Could not reach the data APIs. Your WiFi may block api.hyperliquid.xyz or your eToro backend. Use Vercel (same-origin /api — see README) or a Cloudflare Worker with ?proxy=, or try mobile data.";
   }
   return m;
 }
@@ -78,14 +78,13 @@ async function resolveDataApiPrefix() {
 function hlUrl() {
   return API_ROUTE_PREFIX != null ? API_ROUTE_PREFIX + "/hl" : "https://api.hyperliquid.xyz/info";
 }
-const ETORO_DIRECT = {
-  nq: "https://sidekick-c26b0845.base44.app/functions/etoroCandles",
-  gold: "https://sidekick-c26b0845.base44.app/functions/etoroGoldCandles",
-  oil: "https://sidekick-c26b0845.base44.app/functions/etoroOilCandles",
-  natgas: "https://sidekick-c26b0845.base44.app/functions/etoroNatGasCandles",
-};
 function etoroUrl(name) {
-  return API_ROUTE_PREFIX != null ? API_ROUTE_PREFIX + "/etoro/" + name : ETORO_DIRECT[name];
+  if (API_ROUTE_PREFIX == null) {
+    throw new Error(
+      "eToro candles are loaded only via this app’s API proxy. Deploy on Vercel and set ETORO_CANDLES_* URLs (see README), or use ?proxy= with a Worker configured the same way."
+    );
+  }
+  return API_ROUTE_PREFIX + "/etoro/" + name;
 }
 function fmt(v) { if (v == null) return "—"; return v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 3 : 4); }
 function safeMin(arr) { return arr.reduce((m, v) => v < m ? v : m, arr[0]); }
@@ -422,7 +421,7 @@ function HLvsToro() {
         <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlOilCandles} aSymbol="xyz:CL" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etOilCandles} width={width} isMobile={isMobile} />
         <SectionHeader label="🔥 Natural Gas" />
         <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlNatGasCandles} aSymbol="xyz:NATGAS" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etNatGasCandles} width={width} isMobile={isMobile} />
-        <div style={{ textAlign: "center", fontSize: 10, color: "#94a3b8", paddingBottom: 20, marginTop: 4 }}>Hyperliquid API · eToro Candle API · 1-min · Live</div>
+        <div style={{ textAlign: "center", fontSize: 10, color: "#94a3b8", paddingBottom: 20, marginTop: 4 }}>Hyperliquid · eToro (your configured backend) · 1-min · Live</div>
       </div>
     </div>
   );

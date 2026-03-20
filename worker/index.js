@@ -1,9 +1,10 @@
 const HL_INFO = "https://api.hyperliquid.xyz/info";
-const ETORO = {
-  nq: "https://sidekick-c26b0845.base44.app/functions/etoroCandles",
-  gold: "https://sidekick-c26b0845.base44.app/functions/etoroGoldCandles",
-  oil: "https://sidekick-c26b0845.base44.app/functions/etoroOilCandles",
-  natgas: "https://sidekick-c26b0845.base44.app/functions/etoroNatGasCandles",
+
+const ETORO_ENV = {
+  nq: "ETORO_CANDLES_NQ",
+  gold: "ETORO_CANDLES_GOLD",
+  oil: "ETORO_CANDLES_OIL",
+  natgas: "ETORO_CANDLES_NATGAS",
 };
 
 function corsHeaders(request) {
@@ -16,8 +17,14 @@ function corsHeaders(request) {
   };
 }
 
+function etoroUpstream(env, key) {
+  const k = ETORO_ENV[key];
+  const url = k && env[k];
+  return url && String(url).trim() ? String(url).trim() : null;
+}
+
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const h = corsHeaders(request);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: h });
     const url = new URL(request.url);
@@ -41,7 +48,14 @@ export default {
     const m = path.match(/^\/etoro\/(nq|gold|oil|natgas)$/);
     if (m) {
       if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405, headers: h });
-      const target = ETORO[m[1]];
+      const target = etoroUpstream(env, m[1]);
+      if (!target) {
+        const need = ETORO_ENV[m[1]];
+        return new Response(
+          JSON.stringify({ error: `Worker missing ${need}: set it in wrangler.toml [vars] or dashboard Secrets/Variables.` }),
+          { status: 503, headers: { ...h, "Content-Type": "application/json" } }
+        );
+      }
       const r = await fetch(target, { headers: { Accept: "application/json" } });
       const text = await r.text();
       return new Response(text, {

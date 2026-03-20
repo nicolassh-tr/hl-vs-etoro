@@ -1,16 +1,22 @@
-const MAP = {
-  nq: "https://sidekick-c26b0845.base44.app/functions/etoroCandles",
-  gold: "https://sidekick-c26b0845.base44.app/functions/etoroGoldCandles",
-  oil: "https://sidekick-c26b0845.base44.app/functions/etoroOilCandles",
-  natgas: "https://sidekick-c26b0845.base44.app/functions/etoroNatGasCandles",
+const ENV_KEYS = {
+  nq: "ETORO_CANDLES_NQ",
+  gold: "ETORO_CANDLES_GOLD",
+  oil: "ETORO_CANDLES_OIL",
+  natgas: "ETORO_CANDLES_NATGAS",
 };
 
 export default async function handler(req, res) {
   const name = req.query.name;
-  const target = MAP[name];
-  if (!target) return res.status(404).json({ error: "Unknown instrument" });
+  const envKey = ENV_KEYS[name];
+  if (!envKey) return res.status(404).json({ error: "Unknown instrument" });
+  const target = process.env[envKey];
+  if (!target || !String(target).trim()) {
+    return res.status(503).json({
+      error: `Set ${envKey} in Vercel project Environment Variables to your eToro candle endpoint URL (see README).`,
+    });
+  }
   try {
-    const r = await fetch(target, { headers: { Accept: "application/json" } });
+    const r = await fetch(String(target).trim(), { headers: { Accept: "application/json" } });
     const text = await r.text();
     res
       .status(r.status)
