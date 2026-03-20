@@ -7,6 +7,14 @@ const ETORO_ENV = {
   natgas: "ETORO_CANDLES_NATGAS",
 };
 
+/** Sync with lib/etoro-default-upstreams.js */
+const DEFAULT_ETORO = {
+  nq: "https://sidekick-c26b0845.base44.app/functions/etoroCandles",
+  gold: "https://sidekick-c26b0845.base44.app/functions/etoroGoldCandles",
+  oil: "https://sidekick-c26b0845.base44.app/functions/etoroOilCandles",
+  natgas: "https://sidekick-c26b0845.base44.app/functions/etoroNatGasCandles",
+};
+
 function corsHeaders(request) {
   const o = request.headers.get("Origin");
   return {
@@ -19,7 +27,8 @@ function corsHeaders(request) {
 
 function etoroUpstream(env, key) {
   const k = ETORO_ENV[key];
-  const url = k && env[k];
+  const fromEnv = k && env[k];
+  const url = (fromEnv && String(fromEnv).trim()) || DEFAULT_ETORO[key];
   return url && String(url).trim() ? String(url).trim() : null;
 }
 
@@ -50,11 +59,10 @@ export default {
       if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405, headers: h });
       const target = etoroUpstream(env, m[1]);
       if (!target) {
-        const need = ETORO_ENV[m[1]];
-        return new Response(
-          JSON.stringify({ error: `Worker missing ${need}: set it in wrangler.toml [vars] or dashboard Secrets/Variables.` }),
-          { status: 503, headers: { ...h, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: `No upstream for ${m[1]}` }), {
+          status: 503,
+          headers: { ...h, "Content-Type": "application/json" },
+        });
       }
       const r = await fetch(target, { headers: { Accept: "application/json" } });
       const text = await r.text();

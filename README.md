@@ -2,9 +2,11 @@
 
 Dashboard comparing Hyperliquid and eToro prices. The browser does **not** embed third-party candle hosts: Hyperliquid can be called directly or via `/api/hl`; **eToro candle URLs are only configured on the server** (Vercel env or Worker vars).
 
-## eToro candle endpoints (required)
+## eToro candle endpoints (optional overrides)
 
-Copy `.env.example` and set full URLs to **your** HTTP endpoints that return the same JSON array shape the UI already expects (the previous Base44 functions are no longer referenced in code).
+If you do **nothing**, the app uses built-in default JSON URLs (same hosts as before) from the server proxy and from the browser when `/api` is unavailable. To use **your** endpoints instead, set env vars (Vercel or Worker):
+
+Copy `.env.example` and point each variable at an HTTP URL that returns the same JSON array shape the UI expects.
 
 | Variable | Typical use |
 |----------|-------------|
