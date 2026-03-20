@@ -61,7 +61,7 @@ function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !aCandles.length || !bCandles.length) return;
-    const dpr = [window.dev](https://window.dev)icePixelRatio || 1;
+    const dpr = window.devicePixelRatio || 1;
     canvas.width = wrapW * dpr; canvas.height = height * dpr;
     canvas.style.width = wrapW + "px"; canvas.style.height = height + "px";
     const ctx = canvas.getContext("2d");
@@ -298,7 +298,7 @@ function HLvsToro() {
       setHlGoldCandles(hlGold); setEtGoldCandles(etGold);
       setHlOilCandles(hlOil); setEtOilCandles(etOil);
       setHlNatGasCandles(hlNatGas); setEtNatGasCandles(etNatGas);
-    } catch (err) { setError([err.me](https://err.me)ssage); }
+    } catch (err) { setError(err.message); }
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
