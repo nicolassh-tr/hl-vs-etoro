@@ -69,9 +69,7 @@ function writeCachedFeed(etoro) {
     updatedAt: new Date().toISOString(),
     etoro,
   };
-  const tmp = "cached-feed.json.tmp";
-  fs.writeFileSync(tmp, JSON.stringify(payload), "utf8");
-  fs.renameSync(tmp, "cached-feed.json");
+  fs.writeFileSync("cached-feed.json", JSON.stringify(payload), "utf8");
   const lens = Object.fromEntries(Object.entries(etoro).map(([k, v]) => [k, v.length]));
   console.log("cached-feed.json", payload.updatedAt, lens);
 }
@@ -110,7 +108,9 @@ async function main() {
   }
 }
 
-main().then(() => process.exit(0)).catch((e) => {
-  console.error(e);
-  process.exit(0);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
