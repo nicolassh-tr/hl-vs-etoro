@@ -8,12 +8,18 @@ Everything below uses **GitHub** in the browser and **Cloudflare** in the browse
 
 1. Code is already on `main` with `.github/workflows/deploy-pages.yml`.
 2. On GitHub: **Settings → Pages**.
-3. **Build and deployment → Source:** **GitHub Actions**.
+3. **Build and deployment → Source:** **GitHub Actions** — **not** “Deploy from a branch”.
 4. **Actions** → wait for **Deploy GitHub Pages** (green check).
 5. Your site URL (example):  
    `https://<username>.github.io/hl-vs-etoro/`
 
-**eToro without Cloudflare:** each deploy runs `scripts/build-cached-feed.mjs` on GitHub’s servers and publishes **`cached-feed.json`** next to `index.html`. Your browser loads it from the **same origin** (no CORS). A **seed** `cached-feed.json` is committed so the file is never missing (404) even if a run fails; CI overwrites it when fetches succeed.
+### If `cached-feed.json` matches the repo (68 bytes, `"updatedAt":null`)
+
+That means Pages is still serving **files straight from the `main` branch**. The workflow’s built site (with a real `updatedAt` ISO timestamp and oil candles from CI) is **ignored**.
+
+**Fix:** **Settings → Pages → Build and deployment → Source → GitHub Actions**, then **Actions → Deploy GitHub Pages → Run workflow** once. After that, open `https://<you>.github.io/<repo>/cached-feed.json` — it should be **much larger** than 68 bytes and start with `{"updatedAt":"20`.
+
+**eToro without Cloudflare:** when Source is **GitHub Actions**, each deploy runs `scripts/build-cached-feed.mjs` and publishes **`cached-feed.json`** next to `index.html` in the **artifact** (not the raw repo file). A **seed** `cached-feed.json` stays in git for local reference; the live site should show the **CI-built** file after the step above.
 
 The workflow also runs on a **schedule** (4× daily UTC) and **`workflow_dispatch`** so you can refresh under **Actions → Deploy GitHub Pages → Run workflow**.
 
