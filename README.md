@@ -2,6 +2,19 @@
 
 Dashboard comparing Hyperliquid and eToro prices.
 
+## Test eToro candle API (live)
+
+From the repo root:
+
+- **Windows:** `powershell -ExecutionPolicy Bypass -File .\scripts\test-etoro-candle.ps1`  
+  Optional: `-InstrumentId 27` (default **17** = oil).
+
+- **macOS / Linux:** `bash scripts/test-etoro-candle.sh` or `bash scripts/test-etoro-candle.sh 17`
+
+This hits `candle.etoro.com` directly (CLI, no CORS). Your static site still needs the Worker proxy for browsers.
+
+---
+
 ## Free hosting (no paid subscription)
 
 | Piece | Cost | What it does |
