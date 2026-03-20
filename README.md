@@ -2,16 +2,19 @@
 
 Dashboard comparing Hyperliquid and eToro prices.
 
-## eToro candle feeds (same as before, your host only)
+## Why Hyperliquid loads but eToro sometimes doesn’t
 
-Previously the app called JSON endpoints shaped like:
+- **Hyperliquid** uses their **public** REST API (`api.hyperliquid.xyz`) — the browser calls it **directly** (or via `/api/hl` on Vercel if you use the proxy).
+- **eToro** has **no** equivalent public candle URL in this app. Candles come from **HTTP JSON** endpoints under `/functions/…` (the integration you started with). By default the app uses the same host as before; you can point it elsewhere.
+
+Paths:
 
 - `{BASE}/functions/etoroCandles`
 - `{BASE}/functions/etoroGoldCandles`
 - `{BASE}/functions/etoroOilCandles`
 - `{BASE}/functions/etoroNatGasCandles`
 
-There is **no** hardcoded third-party domain in this repo. You choose `BASE`:
+**Override `BASE`** when you move off the default host:
 
 ### On Vercel (recommended)
 

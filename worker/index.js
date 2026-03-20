@@ -14,6 +14,8 @@ const FUNCTION_FILE = {
   natgas: "etoroNatGasCandles",
 };
 
+const DEFAULT_FUNCTIONS_BASE = "https://sidekick-c26b0845.base44.app";
+
 function corsHeaders(request) {
   const o = request.headers.get("Origin");
   return {
@@ -27,11 +29,10 @@ function corsHeaders(request) {
 function etoroUpstream(env, key) {
   const k = ETORO_ENV[key];
   const specific = k && env[k] && String(env[k]).trim();
-  const base = env.ETORO_FUNCTIONS_BASE && String(env.ETORO_FUNCTIONS_BASE).trim();
+  const base = (env.ETORO_FUNCTIONS_BASE && String(env.ETORO_FUNCTIONS_BASE).trim()) || DEFAULT_FUNCTIONS_BASE;
   const file = FUNCTION_FILE[key];
   if (specific) return specific;
-  if (base && file) return `${base.replace(/\/$/, "")}/functions/${file}`;
-  return null;
+  return `${base.replace(/\/$/, "")}/functions/${file}`;
 }
 
 export default {
@@ -60,14 +61,6 @@ export default {
     if (m) {
       if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405, headers: h });
       const target = etoroUpstream(env, m[1]);
-      if (!target) {
-        return new Response(
-          JSON.stringify({
-            error: "Set ETORO_FUNCTIONS_BASE or ETORO_CANDLES_* on the Worker (see README).",
-          }),
-          { status: 503, headers: { ...h, "Content-Type": "application/json" } }
-        );
-      }
       const r = await fetch(target, { headers: { Accept: "application/json" } });
       const text = await r.text();
       return new Response(text, {

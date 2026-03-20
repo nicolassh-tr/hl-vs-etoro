@@ -1,8 +1,9 @@
 /**
- * Same URL shape as the old integration: {ETORO_FUNCTIONS_BASE}/functions/etoroCandles etc.
- * Set ETORO_FUNCTIONS_BASE in Vercel (e.g. https://api.yourcompany.com), or override any
- * feed with full URL via ETORO_CANDLES_NQ, ETORO_CANDLES_GOLD, ETORO_CANDLES_OIL, ETORO_CANDLES_NATGAS.
+ * Proxies GET /api/etoro/:name → upstream JSON. If env unset, uses same default host as the
+ * original direct browser integration (override with ETORO_FUNCTIONS_BASE or ETORO_CANDLES_*).
  */
+
+const DEFAULT_FUNCTIONS_BASE = "https://sidekick-c26b0845.base44.app";
 
 const ENV_KEYS = {
   nq: "ETORO_CANDLES_NQ",
@@ -25,17 +26,9 @@ async function handler(req, res) {
   if (!envKey || !file) return res.status(404).json({ error: "Unknown instrument" });
 
   const specific = process.env[envKey] && String(process.env[envKey]).trim();
-  const base = process.env.ETORO_FUNCTIONS_BASE && String(process.env.ETORO_FUNCTIONS_BASE).trim();
+  const base = (process.env.ETORO_FUNCTIONS_BASE && String(process.env.ETORO_FUNCTIONS_BASE).trim()) || DEFAULT_FUNCTIONS_BASE;
   const target =
-    specific ||
-    (base ? `${base.replace(/\/$/, "")}/functions/${file}` : null);
-
-  if (!target) {
-    return res.status(503).json({
-      error:
-        "Set ETORO_FUNCTIONS_BASE (origin for /functions/etoroCandles, …) or ETORO_CANDLES_* full URLs — see README.",
-    });
-  }
+    specific || `${base.replace(/\/$/, "")}/functions/${file}`;
   try {
     const r = await fetch(target, { headers: { Accept: "application/json" } });
     const text = await r.text();

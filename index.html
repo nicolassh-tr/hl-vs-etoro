@@ -78,13 +78,20 @@ async function resolveDataApiPrefix() {
 function hlUrl() {
   return API_ROUTE_PREFIX != null ? API_ROUTE_PREFIX + "/hl" : "https://api.hyperliquid.xyz/info";
 }
-/** Same paths as before: {base}/functions/etoroCandles, etoroGoldCandles, … — set base to your host (not Base44). */
+/**
+ * eToro candles: same pattern as HL — direct GET to JSON HTTP endpoints (no auth in this app).
+ * Hyperliquid works everywhere because api.hyperliquid.xyz is their public API. eToro retail has no
+ * equivalent URL in-browser; these /functions/* URLs are the integration you had before.
+ * Override: ETORO_FUNCTIONS_BASE in this file, ?etoroBase=, localStorage hlvs_etoro_functions_base,
+ * or use Vercel /api/etoro/* (server proxies when /api/health exists).
+ */
 const ETORO_FUNCTION_FILE = {
   nq: "etoroCandles",
   gold: "etoroGoldCandles",
   oil: "etoroOilCandles",
   natgas: "etoroNatGasCandles",
 };
+const ETORO_DEFAULT_FUNCTIONS_BASE = "https://sidekick-c26b0845.base44.app";
 const ETORO_FUNCTIONS_BASE = "";
 function getEtoroFunctionsBase() {
   try {
@@ -94,16 +101,14 @@ function getEtoroFunctionsBase() {
     if (ls) return ls.replace(/\/$/, "");
   } catch (e) {}
   const c = typeof ETORO_FUNCTIONS_BASE === "string" ? ETORO_FUNCTIONS_BASE.trim() : "";
-  return c.replace(/\/$/, "");
+  if (c) return c.replace(/\/$/, "");
+  return ETORO_DEFAULT_FUNCTIONS_BASE;
 }
 function etoroUrl(name) {
   if (API_ROUTE_PREFIX != null) return API_ROUTE_PREFIX + "/etoro/" + name;
   const base = getEtoroFunctionsBase();
   const file = ETORO_FUNCTION_FILE[name];
-  if (base && file) return base + "/functions/" + file;
-  throw new Error(
-    "eToro: set ETORO_FUNCTIONS_BASE in index.html, or ?etoroBase=https://your-host, or localStorage hlvs_etoro_functions_base — same /functions/… paths as before. On Vercel set env ETORO_FUNCTIONS_BASE."
-  );
+  return base + "/functions/" + file;
 }
 function fmt(v) { if (v == null) return "—"; return v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 3 : 4); }
 function safeMin(arr) { return arr.reduce((m, v) => v < m ? v : m, arr[0]); }
