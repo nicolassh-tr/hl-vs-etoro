@@ -26,7 +26,8 @@ This hits `candle.etoro.com` directly (CLI, no CORS). Your static site still nee
 | **[GitHub Pages](https://pages.github.com/)** | Free for public repos | Serves `index.html` at `you.github.io/repo-name` |
 | **[Cloudflare Workers](https://developers.cloudflare.com/workers/platform/pricing/)** | Free tier (limits apply) | Small proxy so eToro/Hyperliquid calls run **server-side** (needed for eToro candles + some WiFi) |
 
-You need a **free GitHub account** and a **free Cloudflare account**—no paid plan required for typical personal use. **Deploy the Worker from GitHub Actions** (no Node.js on your PC); see **[DEPLOY.md](./DEPLOY.md)**. Cloudflare’s free tier includes a `*.workers.dev` URL.
+You need a **free GitHub account**. For the proxy, a **free Cloudflare** account is enough (`*.workers.dev`); **deploy the Worker from GitHub Actions** (no Node.js on your PC)—see **[DEPLOY.md](./DEPLOY.md)**.  
+If **work email / IT policy** blocks Cloudflare, use a **personal** Cloudflare account for the Worker secrets, ask someone else to host the Worker URL, or run **without** `?proxy=` (limitations in “What works on Pages alone” below).
 
 **Totally static option (no Worker):** Pages only → $0, but eToro may rely on legacy `/functions/…` URLs in the browser and can break on strict networks or CORS/WiFi.
 

@@ -46,6 +46,21 @@ Everything below uses **GitHub** in the browser and **Cloudflare** in the browse
 
 `wrangler.toml` already sets **oil** instrument **17** for `candle.etoro.com`. Add more variables in the Cloudflare dashboard (**Workers** → your worker → **Settings → Variables**) if needed.
 
+### If work email / company policy blocks Cloudflare
+
+Many employers block signing up for external infra with a **corporate email**, or restrict **Cloudflare** specifically. You still have options:
+
+1. **Personal Cloudflare (usual fix)**  
+   Create a **free** Cloudflare account with a **personal** address (e.g. Gmail). You do **not** need a custom domain for Workers—`*.workers.dev` is enough.  
+   Put the API token and Account ID in **this repo’s GitHub Actions secrets** as above. The Worker runs on your personal Cloudflare account; the app on GitHub Pages is unchanged.  
+   *If your job forbids even that, skip to option 3.*
+
+2. **Someone else deploys the Worker**  
+   A colleague or friend can run the same workflow from a fork (or deploy once and send you the `https://….workers.dev` URL). You only add `?proxy=…` to the Pages URL—no Cloudflare access required on your side.
+
+3. **No proxy (Pages only)**  
+   Skip section 2 entirely. Open the site **without** `?proxy=`. Hyperliquid may work from the browser; eToro often falls back to legacy URLs and can fail on strict WiFi or due to CORS—see **[README.md](./README.md)** (“What works on Pages alone”).
+
 ---
 
 ## 3. Point the app at the Worker
