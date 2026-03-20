@@ -7,12 +7,11 @@ const ETORO_ENV = {
   natgas: "ETORO_CANDLES_NATGAS",
 };
 
-/** Sync with lib/etoro-default-upstreams.js */
-const DEFAULT_ETORO = {
-  nq: "https://sidekick-c26b0845.base44.app/functions/etoroCandles",
-  gold: "https://sidekick-c26b0845.base44.app/functions/etoroGoldCandles",
-  oil: "https://sidekick-c26b0845.base44.app/functions/etoroOilCandles",
-  natgas: "https://sidekick-c26b0845.base44.app/functions/etoroNatGasCandles",
+const FUNCTION_FILE = {
+  nq: "etoroCandles",
+  gold: "etoroGoldCandles",
+  oil: "etoroOilCandles",
+  natgas: "etoroNatGasCandles",
 };
 
 function corsHeaders(request) {
@@ -27,9 +26,12 @@ function corsHeaders(request) {
 
 function etoroUpstream(env, key) {
   const k = ETORO_ENV[key];
-  const fromEnv = k && env[k];
-  const url = (fromEnv && String(fromEnv).trim()) || DEFAULT_ETORO[key];
-  return url && String(url).trim() ? String(url).trim() : null;
+  const specific = k && env[k] && String(env[k]).trim();
+  const base = env.ETORO_FUNCTIONS_BASE && String(env.ETORO_FUNCTIONS_BASE).trim();
+  const file = FUNCTION_FILE[key];
+  if (specific) return specific;
+  if (base && file) return `${base.replace(/\/$/, "")}/functions/${file}`;
+  return null;
 }
 
 export default {
@@ -59,10 +61,12 @@ export default {
       if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405, headers: h });
       const target = etoroUpstream(env, m[1]);
       if (!target) {
-        return new Response(JSON.stringify({ error: `No upstream for ${m[1]}` }), {
-          status: 503,
-          headers: { ...h, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Set ETORO_FUNCTIONS_BASE or ETORO_CANDLES_* on the Worker (see README).",
+          }),
+          { status: 503, headers: { ...h, "Content-Type": "application/json" } }
+        );
       }
       const r = await fetch(target, { headers: { Accept: "application/json" } });
       const text = await r.text();

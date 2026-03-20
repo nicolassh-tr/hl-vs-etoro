@@ -1,51 +1,39 @@
 # HL vs eToro
 
-Dashboard comparing Hyperliquid and eToro prices. The browser does **not** embed third-party candle hosts: Hyperliquid can be called directly or via `/api/hl`; **eToro candle URLs are only configured on the server** (Vercel env or Worker vars).
+Dashboard comparing Hyperliquid and eToro prices.
 
-## eToro candle endpoints (optional overrides)
+## eToro candle feeds (same as before, your host only)
 
-If you do **nothing**, the app uses built-in default JSON URLs (same hosts as before) from the server proxy and from the browser when `/api` is unavailable. To use **your** endpoints instead, set env vars (Vercel or Worker):
+Previously the app called JSON endpoints shaped like:
 
-Copy `.env.example` and point each variable at an HTTP URL that returns the same JSON array shape the UI expects.
+- `{BASE}/functions/etoroCandles`
+- `{BASE}/functions/etoroGoldCandles`
+- `{BASE}/functions/etoroOilCandles`
+- `{BASE}/functions/etoroNatGasCandles`
 
-| Variable | Typical use |
-|----------|-------------|
-| `ETORO_CANDLES_NQ` | NQ / index candles |
-| `ETORO_CANDLES_GOLD` | Gold |
-| `ETORO_CANDLES_OIL` | Oil |
-| `ETORO_CANDLES_NATGAS` | Natural gas |
+There is **no** hardcoded third-party domain in this repo. You choose `BASE`:
 
-**Vercel:** Project → Settings → Environment Variables → add all four, redeploy.
+### On Vercel (recommended)
 
-**Cloudflare Worker:** `wrangler.toml` `[vars]` or the dashboard → Variables for the same names.
+1. Deploy this project.
+2. In **Project → Settings → Environment Variables**, set **`ETORO_FUNCTIONS_BASE`** to the **origin** that serves those `/functions/…` routes on your infrastructure (e.g. `https://candles.internal.company.com`).
+3. Redeploy.
 
-## “Failed to fetch” on WiFi
+Optional: override a single instrument with a full URL: `ETORO_CANDLES_NQ`, `ETORO_CANDLES_GOLD`, `ETORO_CANDLES_OIL`, `ETORO_CANDLES_NATGAS`.
 
-Many networks block `api.hyperliquid.xyz`. Proxies in `api/` and `worker/` let the browser talk only to **your** deployment.
+### Static / GitHub Pages (no `/api`)
 
-### Option A — Vercel (recommended)
+Set the base without redeploying HTML:
 
-1. Import this repo in [Vercel](https://vercel.com) (framework: Other; root: repo root).
-2. Set the `ETORO_CANDLES_*` environment variables.
-3. Deploy and open the `*.vercel.app` URL.
+- Query: `?etoroBase=https://your-host`  
+- Or once: `localStorage.setItem("hlvs_etoro_functions_base", "https://your-host")` then reload.
 
-The app probes `/api/health`, then uses `/api/hl` and `/api/etoro/*` on the same origin.
+Or edit **`ETORO_FUNCTIONS_BASE`** in `index.html` (empty string by default).
 
-### Option B — GitHub Pages + Cloudflare Worker
+### Cloudflare Worker
 
-Pages cannot run `/api/*`. Deploy the worker:
+Set **`ETORO_FUNCTIONS_BASE`** (and optional `ETORO_CANDLES_*`) in wrangler `[vars]` or the dashboard, same as Vercel.
 
-```bash
-cd worker
-npx wrangler deploy
-```
+## WiFi / “Failed to fetch”
 
-Configure the same `ETORO_CANDLES_*` variables on the worker, then open:
-
-`https://YOURNAME.github.io/hl-vs-etoro/?proxy=https://YOUR_SUBDOMAIN.workers.dev`
-
-Persist without the query string:
-
-```js
-localStorage.setItem("hlvs_proxy", "https://YOUR_SUBDOMAIN.workers.dev");
-```
+Use Vercel or the Worker so the browser talks to **your** origin; the server then calls Hyperliquid and your eToro base.

@@ -2,9 +2,6 @@ name = "hl-vs-etoro-proxy"
 main = "index.js"
 compatibility_date = "2024-11-01"
 
-# Optional: eToro upstream URLs (or set in Cloudflare dashboard)
 # [vars]
-# ETORO_CANDLES_NQ = "https://your-api/etoroCandles"
-# ETORO_CANDLES_GOLD = "https://your-api/etoroGoldCandles"
-# ETORO_CANDLES_OIL = "https://your-api/etoroOilCandles"
-# ETORO_CANDLES_NATGAS = "https://your-api/etoroNatGasCandles"
+# ETORO_FUNCTIONS_BASE = "https://your-host"
+# Optional per-feed full URLs: ETORO_CANDLES_NQ, ETORO_CANDLES_GOLD, …

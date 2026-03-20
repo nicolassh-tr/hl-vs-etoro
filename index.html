@@ -78,15 +78,32 @@ async function resolveDataApiPrefix() {
 function hlUrl() {
   return API_ROUTE_PREFIX != null ? API_ROUTE_PREFIX + "/hl" : "https://api.hyperliquid.xyz/info";
 }
-const ETORO_PUBLIC_FALLBACK = {
-  nq: "https://sidekick-c26b0845.base44.app/functions/etoroCandles",
-  gold: "https://sidekick-c26b0845.base44.app/functions/etoroGoldCandles",
-  oil: "https://sidekick-c26b0845.base44.app/functions/etoroOilCandles",
-  natgas: "https://sidekick-c26b0845.base44.app/functions/etoroNatGasCandles",
+/** Same paths as before: {base}/functions/etoroCandles, etoroGoldCandles, … — set base to your host (not Base44). */
+const ETORO_FUNCTION_FILE = {
+  nq: "etoroCandles",
+  gold: "etoroGoldCandles",
+  oil: "etoroOilCandles",
+  natgas: "etoroNatGasCandles",
 };
+const ETORO_FUNCTIONS_BASE = "";
+function getEtoroFunctionsBase() {
+  try {
+    const q = new URLSearchParams(window.location.search).get("etoroBase");
+    if (q) return q.replace(/\/$/, "");
+    const ls = window.localStorage.getItem("hlvs_etoro_functions_base");
+    if (ls) return ls.replace(/\/$/, "");
+  } catch (e) {}
+  const c = typeof ETORO_FUNCTIONS_BASE === "string" ? ETORO_FUNCTIONS_BASE.trim() : "";
+  return c.replace(/\/$/, "");
+}
 function etoroUrl(name) {
   if (API_ROUTE_PREFIX != null) return API_ROUTE_PREFIX + "/etoro/" + name;
-  return ETORO_PUBLIC_FALLBACK[name];
+  const base = getEtoroFunctionsBase();
+  const file = ETORO_FUNCTION_FILE[name];
+  if (base && file) return base + "/functions/" + file;
+  throw new Error(
+    "eToro: set ETORO_FUNCTIONS_BASE in index.html, or ?etoroBase=https://your-host, or localStorage hlvs_etoro_functions_base — same /functions/… paths as before. On Vercel set env ETORO_FUNCTIONS_BASE."
+  );
 }
 function fmt(v) { if (v == null) return "—"; return v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 3 : 4); }
 function safeMin(arr) { return arr.reduce((m, v) => v < m ? v : m, arr[0]); }
