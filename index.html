@@ -212,6 +212,7 @@ async function fetchEtoroFeed(name) {
   };
   try {
     const live = await tryLive();
+    if (!Array.isArray(live) || live.length === 0) throw new Error("eToro " + name + ": empty");
     writeEtoroLocalCache(name, live);
     return live;
   } catch (firstErr) {

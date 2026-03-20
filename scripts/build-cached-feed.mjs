@@ -1,13 +1,16 @@
 /**
  * Runs on GitHub Actions (Node 20). Fetches eToro feeds server-side and writes
  * cached-feed.json for same-origin load on GitHub Pages (browser CORS bypass).
+ *
+ * Always exits 0 and always writes cached-feed.json (CI copies it next to index.html).
+ * Optional repo Variables: ETORO_INSTRUMENT_NQ, ETORO_INSTRUMENT_GOLD, ETORO_INSTRUMENT_NATGAS
+ * (plus ETORO_INSTRUMENT_OIL, default 17) so candle.etoro.com fills symbols Base44 blocks from datacenters.
  */
 import fs from "fs";
 import { randomUUID } from "crypto";
 
 const LEGACY_BASE = "https://sidekick-c26b0845.base44.app";
 const CANDLE_HOST = "https://candle.etoro.com";
-const OIL_INSTRUMENT_ID = "17";
 
 const LEGACY_FILES = {
   nq: "etoroCandles",
@@ -15,6 +18,24 @@ const LEGACY_FILES = {
   oil: "etoroOilCandles",
   natgas: "etoroNatGasCandles",
 };
+
+const KEYS = ["nq", "gold", "oil", "natgas"];
+
+const BROWSER_HEADERS = {
+  Accept: "application/json",
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+  Referer: "https://www.etoro.com/",
+};
+
+function candleIdsFromEnv() {
+  return {
+    nq: (process.env.ETORO_INSTRUMENT_NQ || "").trim(),
+    gold: (process.env.ETORO_INSTRUMENT_GOLD || "").trim(),
+    oil: (process.env.ETORO_INSTRUMENT_OIL || "17").trim(),
+    natgas: (process.env.ETORO_INSTRUMENT_NATGAS || "").trim(),
+  };
+}
 
 function normalizeCandleResponse(json) {
   if (!json || !Array.isArray(json.Candles) || json.Candles.length === 0) return [];
@@ -36,53 +57,60 @@ function normalizeCandleResponse(json) {
 async function fetchJson(url, init = {}) {
   const r = await fetch(url, {
     ...init,
-    headers: { Accept: "application/json", ...(init.headers || {}) },
+    headers: { ...BROWSER_HEADERS, ...(init.headers || {}) },
     signal: AbortSignal.timeout(28000),
   });
-  if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
 
-async function main() {
-  const etoro = { nq: [], gold: [], oil: [], natgas: [] };
-
-  try {
-    const reqId = randomUUID();
-    const url = `${CANDLE_HOST}/candles/asc.json/OneMinute/2/${OIL_INSTRUMENT_ID}?client_request_id=${encodeURIComponent(reqId)}`;
-    const j = await fetchJson(url);
-    etoro.oil = normalizeCandleResponse(j);
-  } catch (e) {
-    console.warn("candle oil:", e.message || e);
-  }
-
-  if (!etoro.oil.length) {
-    try {
-      const j = await fetchJson(`${LEGACY_BASE}/functions/${LEGACY_FILES.oil}`);
-      if (Array.isArray(j)) etoro.oil = j;
-    } catch (e) {
-      console.warn("legacy oil:", e.message || e);
-    }
-  }
-
-  for (const key of ["nq", "gold", "natgas"]) {
-    try {
-      const j = await fetchJson(`${LEGACY_BASE}/functions/${LEGACY_FILES[key]}`);
-      if (Array.isArray(j)) etoro[key] = j;
-    } catch (e) {
-      console.warn(`legacy ${key}:`, e.message || e);
-    }
-  }
-
+function writeCachedFeed(etoro) {
   const payload = {
     updatedAt: new Date().toISOString(),
     etoro,
   };
-  fs.writeFileSync("cached-feed.json", JSON.stringify(payload), "utf8");
+  const tmp = "cached-feed.json.tmp";
+  fs.writeFileSync(tmp, JSON.stringify(payload), "utf8");
+  fs.renameSync(tmp, "cached-feed.json");
   const lens = Object.fromEntries(Object.entries(etoro).map(([k, v]) => [k, v.length]));
-  console.log("cached-feed.json written", payload.updatedAt, lens);
+  console.log("cached-feed.json", payload.updatedAt, lens);
 }
 
-main().catch((e) => {
+async function main() {
+  const etoro = { nq: [], gold: [], oil: [], natgas: [] };
+  const ids = candleIdsFromEnv();
+
+  try {
+    for (const key of KEYS) {
+      const id = ids[key];
+      if (id) {
+        try {
+          const reqId = randomUUID();
+          const url = `${CANDLE_HOST}/candles/asc.json/OneMinute/2/${id}?client_request_id=${encodeURIComponent(reqId)}`;
+          const j = await fetchJson(url);
+          const arr = normalizeCandleResponse(j);
+          if (arr.length) etoro[key] = arr;
+        } catch (e) {
+          console.warn(`candle ${key}:`, e.message || e);
+        }
+      }
+      if (!etoro[key].length) {
+        try {
+          const j = await fetchJson(`${LEGACY_BASE}/functions/${LEGACY_FILES[key]}`);
+          if (Array.isArray(j) && j.length) etoro[key] = j;
+        } catch (e) {
+          console.warn(`legacy ${key}:`, e.message || e);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("build-cached-feed:", e);
+  } finally {
+    writeCachedFeed(etoro);
+  }
+}
+
+main().then(() => process.exit(0)).catch((e) => {
   console.error(e);
-  process.exit(1);
+  process.exit(0);
 });

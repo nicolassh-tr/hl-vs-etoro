@@ -13,7 +13,11 @@ Everything below uses **GitHub** in the browser and **Cloudflare** in the browse
 5. Your site URL (example):  
    `https://<username>.github.io/hl-vs-etoro/`
 
-**eToro without Cloudflare:** each deploy runs `scripts/build-cached-feed.mjs` on GitHub’s servers and publishes **`cached-feed.json`** next to `index.html`. Your browser loads it from the **same origin** (no CORS). The workflow also runs on a **schedule** (4× daily UTC) and **`workflow_dispatch`** so you can refresh the snapshot manually under **Actions → Deploy GitHub Pages → Run workflow**.
+**eToro without Cloudflare:** each deploy runs `scripts/build-cached-feed.mjs` on GitHub’s servers and publishes **`cached-feed.json`** next to `index.html`. Your browser loads it from the **same origin** (no CORS). A **seed** `cached-feed.json` is committed so the file is never missing (404) even if a run fails; CI overwrites it when fetches succeed.
+
+The workflow also runs on a **schedule** (4× daily UTC) and **`workflow_dispatch`** so you can refresh under **Actions → Deploy GitHub Pages → Run workflow**.
+
+**If only Oil fills in CI:** Base44 legacy URLs often return **403** from GitHub’s datacenter IPs. Oil still works via `candle.etoro.com` (instrument **17**). For NQ / Gold / NatGas in the cache, add repo **Settings → Secrets and variables → Actions → Variables** (not secrets): `ETORO_INSTRUMENT_NQ`, `ETORO_INSTRUMENT_GOLD`, `ETORO_INSTRUMENT_NATGAS` with the IDs from eToro’s site (Network tab on `candle.etoro.com` requests). Optional: `ETORO_INSTRUMENT_OIL` to override **17**.
 
 ---
 

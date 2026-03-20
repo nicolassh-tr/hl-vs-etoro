@@ -33,13 +33,17 @@ jobs:
           node-version: "20"
       - uses: actions/configure-pages@v5
       - name: Fetch eToro server-side → cached-feed.json
+        env:
+          ETORO_INSTRUMENT_OIL: ${{ vars.ETORO_INSTRUMENT_OIL }}
+          ETORO_INSTRUMENT_NQ: ${{ vars.ETORO_INSTRUMENT_NQ }}
+          ETORO_INSTRUMENT_GOLD: ${{ vars.ETORO_INSTRUMENT_GOLD }}
+          ETORO_INSTRUMENT_NATGAS: ${{ vars.ETORO_INSTRUMENT_NATGAS }}
         run: node scripts/build-cached-feed.mjs
-        continue-on-error: true
       - name: Prepare site
         run: |
           mkdir -p _site
           cp index.html _site/
-          if [ -f cached-feed.json ]; then cp cached-feed.json _site/; fi
+          cp cached-feed.json _site/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
