@@ -13,7 +13,16 @@
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div style="max-width:420px;margin:3rem auto;padding:0 1rem;font-family:system-ui,sans-serif;color:#475569;line-height:1.5">
+      <p style="font-weight:700;color:#0f172a">Loading HL vs eToro…</p>
+      <p style="font-size:14px">If this text never disappears, press <strong>F12</strong> → <strong>Console</strong> and fix any red errors (often a blocked script or network).</p>
+      <p style="font-size:14px">On <strong>GitHub Pages</strong> you need a <strong>Cloudflare Worker</strong> for eToro candles: add to the URL:</p>
+      <p style="font-size:13px;background:#f1f5f9;padding:10px;border-radius:8px;word-break:break-all"><code>?proxy=https://YOUR_SUBDOMAIN.workers.dev</code></p>
+      <p style="font-size:13px"><a href="https://github.com/nicolassh-tr/hl-vs-etoro/blob/main/DEPLOY.md" style="color:#6366f1">Deploy steps (DEPLOY.md)</a></p>
+    </div>
+  </div>
+  <noscript><p style="padding:2rem;text-align:center">Enable JavaScript to run this app.</p></noscript>
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 const HL_COLOR = "#00e5a0";
@@ -33,7 +42,7 @@ function fetchErrorHint(err) {
     /networkerror|load failed|aborted|abort/i.test(m) ||
     (err && err.name === "AbortError");
   if (blocked) {
-    return "Could not reach the data APIs. Your WiFi may block api.hyperliquid.xyz or your eToro backend. Use Vercel (same-origin /api — see README) or a Cloudflare Worker with ?proxy=, or try mobile data.";
+    return "Could not reach the data APIs. On GitHub Pages add ?proxy=https://YOUR.worker.dev (Cloudflare Worker — see DEPLOY.md). WiFi may block api.hyperliquid.xyz or eToro; try mobile data.";
   }
   return m;
 }
