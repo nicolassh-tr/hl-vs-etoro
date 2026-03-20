@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HL vs eToro · Price Comparison</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+const HL_COLOR = "#00e5a0";
+const ET_COLOR = "#6366f1";
+const GREEN = "#10b981";
+const RED = "#ef4444";
+
+function fmt(v) {
+  if (v == null) return "—";
+  return v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 3 : 4);
+}
+function safeMin(arr) { return arr.reduce((m, v) => v < m ? v : m, arr[0]); }
+function safeMax(arr) { return arr.reduce((m, v) => v > m ? v : m, arr[0]); }
+function roundMin(t) { return Math.round(t / 60000) * 60000; }
+function trimToOverlap(a, b) {
+  if (!a.length || !b.length) return { a, b };
+  const aN = a.map(c => ({ ...c, t: roundMin(c.t) }));
+  const bN = b.map(c => ({ ...c, t: roundMin(c.t) }));
+  const start = Math.max(aN[0].t, bN[0].t);
+  const end = Math.min(aN[aN.length - 1].t, bN[bN.length - 1].t);
+  if (start > end) return { a, b };
+  return {
+    a: aN.filter(c => c.t >= start && c.t <= end),
+    b: bN.filter(c => c.t >= start && c.t <= end)
+  };
+}
+
+function LineChart({ candles, color, width, height }) {
+  if (!candles.length) return null;
+  const prices = candles.map(c => c.close);
+  const min = safeMin(prices), max = safeMax(prices);
+  const range = max - min || 1;
+  const pts = prices.map((p, i) => {
+    const x = (i / (prices.length - 1)) * width;
+    const y = height - ((p - min) / range) * (height - 4) - 2;
+    return `${x},${y}`;
+  }).join(" ");
+  return (
+    <svg width={width} height={height} style={{ display: "block" }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
+  const canvasRef = useRef(null);
+  const wrapRef = useRef(null);
+  const [wrapW, setWrapW] = useState(800);
+  const [hovered, setHovered] = useState(null);
+
+  useEffect(() => {
+    const ro = new ResizeObserver(([e]) => setWrapW(Math.floor(e.contentRect.width)));
+    if (wrapRef.current) ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const PAD_L = 62, PAD_R = 10, PAD_T = 12, PAD_B = 32;
+  const W = wrapW - PAD_L - PAD_R;
+  const H = height - PAD_T - PAD_B;
+  const allClose = [...aCandles, ...bCandles].map(c => c.close);
+  const minP = allClose.length ? safeMin(allClose) : 0;
+  const maxP = allClose.length ? safeMax(allClose) : 1;
+  const padP = (maxP - minP) * 0.08 || 1;
+  const lo = minP - padP, hi = maxP + padP, rangeP = hi - lo;
+  const toY = p => PAD_T + H - ((p - lo) / rangeP) * H;
+  const toX = (i, len) => PAD_L + (i / Math.max(len - 1, 1)) * W;
+  const fmtPrice = v => v >= 1000 ? v.toLocaleString("en-US", { maximumFractionDigits: 0 }) : v.toFixed(2);
+  const yTickCount = 6;
+  const yTicks = Array.from({ length: yTickCount }, (_, i) => lo + (rangeP / (yTickCount - 1)) * i);
+  const xTickCount = 6;
+  const xTicks = Array.from({ length: xTickCount }, (_, i) => Math.round(i * (aCandles.length - 1) / (xTickCount - 1)));
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !aCandles.length || !bCandles.length) return;
+    const dpr = [window.dev](https://window.dev)icePixelRatio || 1;
+    canvas.width = wrapW * dpr; canvas.height = height * dpr;
+    canvas.style.width = wrapW + "px"; canvas.style.height = height + "px";
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, wrapW, height);
+    ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 0.8;
+    yTicks.forEach(v => { ctx.beginPath(); ctx.moveTo(PAD_L, toY(v)); ctx.lineTo(PAD_L + W, toY(v)); ctx.stroke(); });
+    ctx.fillStyle = "#64748b"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "right";
+    yTicks.forEach(v => { ctx.fillText(fmtPrice(v), PAD_L - 6, toY(v) + 4); });
+    ctx.textAlign = "center";
+    xTicks.forEach(idx => { ctx.fillText(aCandles[idx]?.time || "", toX(idx, aCandles.length), height - 8); });
+    ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD_L, PAD_T); ctx.lineTo(PAD_L, PAD_T + H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(PAD_L, PAD_T + H); ctx.lineTo(PAD_L + W, PAD_T + H); ctx.stroke();
+    const drawLine = (candles, color) => {
+      if (!candles.length) return;
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.lineCap = "round";
+      ctx.beginPath();
+      candles.forEach((c, i) => { const x = toX(i, candles.length), y = toY(c.close); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+      ctx.stroke();
+    };
+    drawLine(aCandles, aColor); drawLine(bCandles, bColor);
+    if (hovered != null && aCandles[hovered]) {
+      const hx = toX(hovered, aCandles.length);
+      ctx.strokeStyle = "#64748b"; ctx.lineWidth = 0.8; ctx.setLineDash([3, 2]);
+      ctx.beginPath(); ctx.moveTo(hx, PAD_T); ctx.lineTo(hx, PAD_T + H); ctx.stroke();
+      ctx.setLineDash([]);
+      const tooltipX = hx + 8 > PAD_L + W - 160 ? hx - 168 : hx + 8;
+      ctx.fillStyle = "rgba(255,255,255,0.97)"; ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
+      const rr = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r); ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r); ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r); ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath(); };
+      rr(ctx, tooltipX, PAD_T+6, 158, 46, 5); ctx.fill(); ctx.stroke();
+      ctx.font = "bold 12px system-ui, sans-serif"; ctx.textAlign = "left";
+      ctx.fillStyle = aColor; ctx.fillText("eT:  " + fmtPrice(aCandles[hovered].close), tooltipX+10, PAD_T+24);
+      ctx.fillStyle = bColor; ctx.fillText("HL:  " + fmtPrice(bCandles[hovered]?.close ?? 0), tooltipX+10, PAD_T+42);
+    }
+  }, [wrapW, height, aCandles, bCandles, hovered, aColor, bColor]);
+
+  return (
+    <div ref={wrapRef} style={{ width: "100%", lineHeight: 0 }}>
+      <canvas ref={canvasRef} style={{ display: "block", cursor: "crosshair" }}
+        onMouseLeave={() => setHovered(null)}
+        onMouseMove={e => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = e.clientX - rect.left - PAD_L;
+          const idx = Math.round((x / W) * (aCandles.length - 1));
+          if (idx >= 0 && idx < aCandles.length) setHovered(idx); else setHovered(null);
+        }}
+      />
+    </div>
+  );
+}
+
+function SkewSynopsis({ instruments }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "12px 14px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Spread: eToro − HL · Live &amp; 2h Avg</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+        {instruments.map(({ label, icon, etCandles, hlCandles, decimals = 2 }) => {
+          const { a: eC, b: hC } = trimToOverlap(etCandles, hlCandles);
+          if (!eC.length || !hC.length) return (
+            <div key={label} style={{ borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+              <div style={{ background: "#f8fafc", padding: "6px 10px", display: "flex", alignItems: "center", gap: 5, borderBottom: "1px solid #e2e8f0" }}>
+                <span style={{ fontSize: 14 }}>{icon}</span>
+                <span style={{ fontWeight: 800, fontSize: 12, color: "#0f172a" }}>{label}</span>
+              </div>
+              <div style={{ padding: "10px", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>⚠️ HL delisted</div>
+                <div style={{ fontSize: 9, color: "#94a3b8" }}>No HL data available</div>
+              </div>
+            </div>
+          );
+          const hMap = new Map(hC.map(c => [Math.round(c.t / 60000) * 60000, c.close]));
+          const eLast = eC[eC.length - 1], hLast = hC[hC.length - 1];
+          const eLastT = eLast ? Math.round(eLast.t / 60000) * 60000 : null;
+          const liveSpread = eLast && eLastT && hMap.has(eLastT) ? eLast.close - hMap.get(eLastT) : (eLast && hLast ? eLast.close - hLast.close : null);
+          const livePct = hLast?.close && liveSpread != null ? (liveSpread / hLast.close * 100) : null;
+          const matched = eC.filter(c => hMap.has(Math.round(c.t / 60000) * 60000)).slice(-120);
+          const avgSpread = matched.length ? matched.reduce((s, c) => { const hClose = hMap.get(Math.round(c.t / 60000) * 60000); return hClose != null ? s + (c.close - hClose) : s; }, 0) / matched.length : 0;
+          const avgPct = hLast?.close ? (avgSpread / hLast.close * 100) : 0;
+          const posLive = liveSpread == null ? true : liveSpread >= 0;
+          const posAvg = avgSpread >= 0;
+          return (
+            <div key={label} style={{ borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+              <div style={{ background: "#f8fafc", padding: "6px 10px", display: "flex", alignItems: "center", gap: 5, borderBottom: "1px solid #e2e8f0" }}>
+                <span style={{ fontSize: 14 }}>{icon}</span>
+                <span style={{ fontWeight: 800, fontSize: 12, color: "#0f172a" }}>{label}</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+                <div style={{ padding: "8px 10px", borderRight: "1px solid #f1f5f9" }}>
+                  <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Live</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: posLive ? GREEN : RED, lineHeight: 1 }}>
+                    {liveSpread != null ? (liveSpread >= 0 ? "+" : "") + liveSpread.toFixed(decimals) : "—"}
+                  </div>
+                  {livePct != null && <div style={{ fontSize: 10, fontWeight: 700, color: posLive ? GREEN : RED }}>{livePct >= 0 ? "+" : ""}{livePct.toFixed(4)}%</div>}
+                </div>
+                <div style={{ padding: "8px 10px" }}>
+                  <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>2h Avg</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: posAvg ? GREEN : RED, lineHeight: 1 }}>
+                    {posAvg ? "+" : ""}{avgSpread.toFixed(decimals)}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: posAvg ? GREEN : RED }}>{posAvg ? "+" : ""}{avgPct.toFixed(4)}%</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({ label }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0 8px" }}>
+      <div style={{ fontWeight: 900, fontSize: 14, color: "#0f172a" }}>{label}</div>
+      <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+    </div>
+  );
+}
+
+function InstrumentPanel({ aLabel, aTag, aColor, aCandles, aSymbol, bLabel, bTag, bColor, bCandles, width, isMobile }) {
+  const { a: eToroTrimmed, b: hlTrimmed } = trimToOverlap(bCandles, aCandles);
+  const eFinal = eToroTrimmed.length ? eToroTrimmed : bCandles;
+  const hFinal = hlTrimmed.length ? hlTrimmed : aCandles;
+  if (!eFinal.length && !hFinal.length) return <div style={{ textAlign: "center", padding: 20, color: "#94a3b8", fontSize: 12 }}>No data</div>;
+  const eLast = eFinal[eFinal.length - 1], hLast = hFinal[hFinal.length - 1];
+  const eFirst = eFinal[0], hFirst = hFinal[0];
+  const eChg = eFirst && eLast ? (eLast.close - eFirst.open) / eFirst.open * 100 : 0;
+  const hChg = hFirst && hLast ? (hLast.close - hFirst.open) / hFirst.open * 100 : 0;
+  const card = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, marginBottom: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", padding: "10px 10px" };
+  return (
+    <>
+      <div style={{ ...card, display: "flex", gap: 0 }}>
+        {[
+          { label: bLabel, tag: bTag, color: bColor, last: eLast, chg: eChg, hasData: eFinal.length > 0 },
+          { label: aLabel, tag: aTag, color: aColor, last: hLast, chg: hChg, hasData: hFinal.length > 0 },
+        ].map(({ label, tag, color, last, chg, hasData }, i) => (
+          <div key={tag} style={{ flex: 1, borderLeft: i > 0 ? "1px solid #f1f5f9" : "none", paddingLeft: i > 0 ? 14 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+              <span style={{ background: color === HL_COLOR ? "#0f172a" : color, color: "#fff", fontWeight: 900, fontSize: 10, padding: "2px 6px", borderRadius: 4 }}>{tag}</span>
+              <span style={{ fontWeight: 700, fontSize: 12, color: "#0f172a" }}>{label}</span>
+            </div>
+            {hasData ? <>
+              <div style={{ fontSize: 22, fontWeight: 900, color: chg >= 0 ? GREEN : RED, lineHeight: 1 }}>{fmt(last?.close)}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: chg >= 0 ? GREEN : RED }}>{chg >= 0 ? "▲ +" : "▼ "}{chg.toFixed(3)}%</div>
+            </> : <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, marginTop: 4 }}>⚠️ Delisted on HL</div>}
+          </div>
+        ))}
+      </div>
+      {eFinal.length > 0 && hFinal.length > 0 ? (
+        <div style={{ ...card, padding: "10px 0 6px 0", overflow: "hidden" }}>
+          <div style={{ display: "flex", gap: 14, marginBottom: 6, padding: "0 14px" }}>
+            <span style={{ fontSize: 11, color: bColor, fontWeight: 700 }}>— {bLabel}</span>
+            <span style={{ fontSize: 11, color: aColor, fontWeight: 700 }}>— {aLabel}</span>
+            {aSymbol && <span style={{ fontSize: 10, background: "#0f172a", color: "#00e5a0", borderRadius: 5, padding: "1px 6px", fontFamily: "monospace", fontWeight: 700, letterSpacing: 0.5 }}>{aSymbol}</span>}
+          </div>
+          <OverlayChart aCandles={eFinal} bCandles={hFinal} aColor={bColor} bColor={aColor} height={isMobile ? 200 : 300} />
+        </div>
+      ) : (
+        <div style={{ ...card, textAlign: "center", padding: "14px", color: "#94a3b8", fontSize: 12 }}>⚠️ HL has no NQ100 product — overlay unavailable</div>
+      )}
+    </>
+  );
+}
+
+async function fetchHL() {
+  const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
+  const res = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:XYZ100", interval: "1m", startTime: start, endTime: now } }) });
+  const raw = await res.json();
+  if (!raw || !Array.isArray(raw)) return [];
+  return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
+}
+async function fetchEToroNQ() {
+  const res = await fetch("https://sidekick-c26b0845.base44.app/functions/etoroCandles");
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error("eToro NQ API error: " + JSON.stringify(data).slice(0,100));
+  return data;
+}
+async function fetchHLGold() {
+  const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
+  const res = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:GOLD", interval: "1m", startTime: start, endTime: now } }) });
+  const raw = await res.json();
+  if (!raw || !Array.isArray(raw)) return [];
+  return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
+}
+async function fetchEToroGold() {
+  const res = await fetch("https://sidekick-c26b0845.base44.app/functions/etoroGoldCandles");
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error("eToro Gold API error: " + JSON.stringify(data).slice(0,100));
+  return data;
+}
+async function fetchHLOil() {
+  const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
+  const res = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:CL", interval: "1m", startTime: start, endTime: now } }) });
+  const raw = await res.json();
+  if (!raw || !Array.isArray(raw)) return [];
+  return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
+}
+async function fetchEToroOil() {
+  const res = await fetch("https://sidekick-c26b0845.base44.app/functions/etoroOilCandles");
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error("eToro Oil API error: " + JSON.stringify(data).slice(0,100));
+  return data;
+}
+async function fetchHLNatGas() {
+  const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
+  const res = await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:NATGAS", interval: "1m", startTime: start, endTime: now } }) });
+  const raw = await res.json();
+  if (!raw || !Array.isArray(raw)) return [];
+  return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
+}
+async function fetchEToroNatGas() {
+  const res = await fetch("https://sidekick-c26b0845.base44.app/functions/etoroNatGasCandles");
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error("eToro NatGas API error: " + JSON.stringify(data).slice(0,100));
+  return data;
+}
+
+function HLvsToro() {
+  const [hlCandles, setHlCandles] = useState([]);
+  const [etNQCandles, setEtNQCandles] = useState([]);
+  const [hlGoldCandles, setHlGoldCandles] = useState([]);
+  const [etGoldCandles, setEtGoldCandles] = useState([]);
+  const [hlOilCandles, setHlOilCandles] = useState([]);
+  const [etOilCandles, setEtOilCandles] = useState([]);
+  const [hlNatGasCandles, setHlNatGasCandles] = useState([]);
+  const [etNatGasCandles, setEtNatGasCandles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const containerRef = useRef(null);
+  const [width, setWidth] = useState(390);
+
+  useEffect(() => {
+    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const load = async () => {
+    setLoading(true); setError(null);
+    try {
+      const [hl, etNQ, hlGold, etGold, hlOil, etOil, hlNatGas, etNatGas] = await Promise.all([
+        fetchHL(), fetchEToroNQ(), fetchHLGold(), fetchEToroGold(), fetchHLOil(), fetchEToroOil(), fetchHLNatGas(), fetchEToroNatGas()
+      ]);
+      setHlCandles(hl); setEtNQCandles(etNQ);
+      setHlGoldCandles(hlGold); setEtGoldCandles(etGold);
+      setHlOilCandles(hlOil); setEtOilCandles(etOil);
+      setHlNatGasCandles(hlNatGas); setEtNatGasCandles(etNatGas);
+    } catch (e) { setError([e.me](https://e.me)ssage); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", flexDirection: "column", gap: 14, background: "#f8fafc" }}>
+      <div style={{ width: 32, height: 32, border: `3px solid ${HL_COLOR}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      <div style={{ color: "#64748b", fontSize: 13 }}>Loading live data...</div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", flexDirection: "column", gap: 12, background: "#f8fafc" }}>
+      <div style={{ fontSize: 26 }}>⚠️</div>
+      <div style={{ color: RED, fontWeight: 700, fontSize: 13 }}>{error}</div>
+      <button onClick={load} style={{ padding: "9px 18px", background: HL_COLOR, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}>Retry</button>
+    </div>
+  );
+
+  const isMobile = width < 600;
+
+  return (
+    <div ref={containerRef} style={{ background: "#f8fafc", minHeight: "100vh", fontFamily: "'Inter',system-ui,sans-serif", color: "#0f172a" }}>
+      <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "10px 14px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: 15 }}>HL vs eToro</div>
+          <div style={{ fontSize: 10, color: "#94a3b8" }}>1-min candles · live · UTC</div>
+        </div>
+        <button onClick={load} style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🔄 Refresh</button>
+      </div>
+      <div style={{ padding: "12px 8px", maxWidth: 1400, margin: "0 auto" }}>
+        <SkewSynopsis instruments={[
+          { label: "NQ100",  icon: "📈", etCandles: etNQCandles,     hlCandles: hlCandles },
+          { label: "Gold",   icon: "🥇", etCandles: etGoldCandles,   hlCandles: hlGoldCandles },
+          { label: "Oil",    icon: "🛢️", etCandles: etOilCandles,    hlCandles: hlOilCandles },
+          { label: "NatGas", icon: "🔥", etCandles: etNatGasCandles, hlCandles: hlNatGasCandles, decimals: 3 },
+        ]} />
+        <SectionHeader label="📈 NQ100 Index" />
+        <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlCandles} aSymbol="xyz:XYZ100" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etNQCandles} width={width} isMobile={isMobile} />
+        <SectionHeader label="🥇 Gold" />
+        <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlGoldCandles} aSymbol="xyz:GOLD" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etGoldCandles} width={width} isMobile={isMobile} />
+        <SectionHeader label="🛢️ Oil" />
+        <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlOilCandles} aSymbol="xyz:CL" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etOilCandles} width={width} isMobile={isMobile} />
+        <SectionHeader label="🔥 Natural Gas" />
+        <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlNatGasCandles} aSymbol="xyz:NATGAS" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etNatGasCandles} width={width} isMobile={isMobile} />
+        <div style={{ textAlign: "center", fontSize: 10, color: "#94a3b8", paddingBottom: 20, marginTop: 4 }}>
+          Hyperliquid API · eToro Candle API · 1-min · Live
+        </div>
+      </div>
+    </div>
+  );
+}
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<HLvsToro />);
+  </script>
+</body>
+</html>
