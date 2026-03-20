@@ -1,16 +1,11 @@
-/**
- * Proxies GET /api/etoro/:name → upstream JSON. If env unset, uses same default host as the
- * original direct browser integration (override with ETORO_FUNCTIONS_BASE or ETORO_CANDLES_*).
- */
+const crypto = require("crypto");
+const {
+  DEFAULT_CANDLE_HOST,
+  normalizeCandleResponse,
+  buildCandleUrl,
+} = require("../../lib/etoro-candle-api");
 
 const DEFAULT_FUNCTIONS_BASE = "https://sidekick-c26b0845.base44.app";
-
-const ENV_KEYS = {
-  nq: "ETORO_CANDLES_NQ",
-  gold: "ETORO_CANDLES_GOLD",
-  oil: "ETORO_CANDLES_OIL",
-  natgas: "ETORO_CANDLES_NATGAS",
-};
 
 const FUNCTION_FILE = {
   nq: "etoroCandles",
@@ -19,25 +14,82 @@ const FUNCTION_FILE = {
   natgas: "etoroNatGasCandles",
 };
 
+/** Env: ETORO_INSTRUMENT_NQ, _GOLD, _OIL, _NATGAS — numeric IDs from etoro.com DevTools (candle.etoro.com …/2/{id}/…) */
+const INSTRUMENT_ENV = {
+  nq: "ETORO_INSTRUMENT_NQ",
+  gold: "ETORO_INSTRUMENT_GOLD",
+  oil: "ETORO_INSTRUMENT_OIL",
+  natgas: "ETORO_INSTRUMENT_NATGAS",
+};
+
+const DEFAULT_INSTRUMENT_ID = {
+  oil: "17",
+};
+
+async function fetchLegacyFunctions(name) {
+  const file = FUNCTION_FILE[name];
+  const base =
+    (process.env.ETORO_FUNCTIONS_BASE && String(process.env.ETORO_FUNCTIONS_BASE).trim()) ||
+    DEFAULT_FUNCTIONS_BASE;
+  const url = `${base.replace(/\/$/, "")}/functions/${file}`;
+  const r = await fetch(url, { headers: { Accept: "application/json" } });
+  const text = await r.text();
+  return { status: r.status, text, contentType: r.headers.get("content-type") || "application/json" };
+}
+
+async function fetchCandleApi(instrumentId) {
+  const host =
+    (process.env.ETORO_CANDLE_HOST && String(process.env.ETORO_CANDLE_HOST).trim()) ||
+    DEFAULT_CANDLE_HOST;
+  const id = String(instrumentId).trim();
+  const reqId = crypto.randomUUID();
+  const url = buildCandleUrl(host, id, reqId);
+  const r = await fetch(url, { headers: { Accept: "application/json" } });
+  const text = await r.text();
+  if (!r.ok) {
+    return {
+      status: r.status,
+      body: text.slice(0, 2000) || JSON.stringify({ error: `candle API HTTP ${r.status}` }),
+      contentType: r.headers.get("content-type") || "application/json",
+    };
+  }
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return {
+      status: 502,
+      body: JSON.stringify({ error: "Invalid JSON from candle API" }),
+      contentType: "application/json",
+    };
+  }
+  const candles = normalizeCandleResponse(json);
+  return {
+    status: 200,
+    body: JSON.stringify(candles),
+    contentType: "application/json",
+  };
+}
+
 async function handler(req, res) {
   const name = req.query.name;
-  const envKey = ENV_KEYS[name];
   const file = FUNCTION_FILE[name];
-  if (!envKey || !file) return res.status(404).json({ error: "Unknown instrument" });
+  const envKey = INSTRUMENT_ENV[name];
+  if (!file || !envKey) return res.status(404).json({ error: "Unknown instrument" });
 
-  const specific = process.env[envKey] && String(process.env[envKey]).trim();
-  const base = (process.env.ETORO_FUNCTIONS_BASE && String(process.env.ETORO_FUNCTIONS_BASE).trim()) || DEFAULT_FUNCTIONS_BASE;
-  const target =
-    specific || `${base.replace(/\/$/, "")}/functions/${file}`;
+  const fromEnv = process.env[envKey] && String(process.env[envKey]).trim();
+  const defaultId = DEFAULT_INSTRUMENT_ID[name];
+  const instrumentId = fromEnv || defaultId;
+
   try {
-    const r = await fetch(target, { headers: { Accept: "application/json" } });
-    const text = await r.text();
-    res
-      .status(r.status)
-      .setHeader("Content-Type", r.headers.get("content-type") || "application/json")
-      .send(text);
+    if (instrumentId) {
+      const out = await fetchCandleApi(instrumentId);
+      return res.status(out.status).setHeader("Content-Type", out.contentType).send(out.body);
+    }
+    const leg = await fetchLegacyFunctions(name);
+    return res.status(leg.status).setHeader("Content-Type", leg.contentType).send(leg.text);
   } catch (e) {
-    res.status(502).json({ error: String(e && e.message) });
+    return res.status(502).json({ error: String(e && e.message) });
   }
 }
 

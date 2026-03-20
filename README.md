@@ -2,41 +2,47 @@
 
 Dashboard comparing Hyperliquid and eToro prices.
 
-## Why Hyperliquid loads but eToro sometimes doesn’t
+## eToro data sources
 
-- **Hyperliquid** uses their **public** REST API (`api.hyperliquid.xyz`) — the browser calls it **directly** (or via `/api/hl` on Vercel if you use the proxy).
-- **eToro** has **no** equivalent public candle URL in this app. Candles come from **HTTP JSON** endpoints under `/functions/…` (the integration you started with). By default the app uses the same host as before; you can point it elsewhere.
+### 1. Official chart API (Vercel `/api` or Worker)
 
-Paths:
+Same as **www.etoro.com** in DevTools:
 
-- `{BASE}/functions/etoroCandles`
-- `{BASE}/functions/etoroGoldCandles`
-- `{BASE}/functions/etoroOilCandles`
-- `{BASE}/functions/etoroNatGasCandles`
+`GET https://candle.etoro.com/candles/asc.json/OneMinute/2/{instrumentId}?client_request_id={uuid}`
 
-**Override `BASE`** when you move off the default host:
+The proxy normalizes the JSON to the candle array the UI expects.
 
-### On Vercel (recommended)
+- **CORS** on `candle.etoro.com` allows **`https://www.etoro.com`** only, so the **browser** cannot call it from this app’s origin. Use **`/api/etoro/*`** on Vercel or the **Worker** (`?proxy=`) so the **server** fetches candles.
+- **Oil** defaults to instrument **17** (from your Network capture). For NQ, Gold, NatGas, open each chart on eToro, find the same candle URL pattern, and set in Vercel / Worker:
 
-1. Deploy this project.
-2. In **Project → Settings → Environment Variables**, set **`ETORO_FUNCTIONS_BASE`** to the **origin** that serves those `/functions/…` routes on your infrastructure (e.g. `https://candles.internal.company.com`).
-3. Redeploy.
+  - `ETORO_INSTRUMENT_NQ`
+  - `ETORO_INSTRUMENT_GOLD`
+  - `ETORO_INSTRUMENT_OIL` (optional; default `17`)
+  - `ETORO_INSTRUMENT_NATGAS`
 
-Optional: override a single instrument with a full URL: `ETORO_CANDLES_NQ`, `ETORO_CANDLES_GOLD`, `ETORO_CANDLES_OIL`, `ETORO_CANDLES_NATGAS`.
+Optional: `ETORO_CANDLE_HOST` (default `https://candle.etoro.com`).
 
-### Static / GitHub Pages (no `/api`)
+### 2. Legacy `/functions/…` JSON (fallback)
 
-Set the base without redeploying HTML:
+If **no** instrument ID is configured for a symbol, `/api/etoro/{name}` proxies:
 
-- Query: `?etoroBase=https://your-host`  
-- Or once: `localStorage.setItem("hlvs_etoro_functions_base", "https://your-host")` then reload.
+`{ETORO_FUNCTIONS_BASE}/functions/etoroCandles` (and gold / oil / natgas names).  
+Default base is the earlier integration host.
 
-Or edit **`ETORO_FUNCTIONS_BASE`** in `index.html` (empty string by default).
+### Why Hyperliquid loads more easily
 
-### Cloudflare Worker
+**Hyperliquid** serves **`api.hyperliquid.xyz`** to any origin. **eToro candles** require a **same-origin or server-side** fetch.
 
-Set **`ETORO_FUNCTIONS_BASE`** (and optional `ETORO_CANDLES_*`) in wrangler `[vars]` or the dashboard, same as Vercel.
+## Deploy (Vercel)
 
-## WiFi / “Failed to fetch”
+1. Import this repo.
+2. Set **`ETORO_INSTRUMENT_*`** for each market you want from **candle.etoro.com** (oil works with defaults on redeploy).
+3. Redeploy. Open the `*.vercel.app` URL so `/api/health` and `/api/etoro/*` are used.
 
-Use Vercel or the Worker so the browser talks to **your** origin; the server then calls Hyperliquid and your eToro base.
+## GitHub Pages (no `/api`)
+
+Use a **Worker** + `?proxy=` (see `worker/`), or rely on **browser-direct** legacy `/functions/…` URLs via `?etoroBase=` / `localStorage` / `ETORO_FUNCTIONS_BASE` in `index.html` — not the official candle API (CORS).
+
+## WiFi
+
+Prefer Vercel or the Worker so the browser only hits **your** deployment.

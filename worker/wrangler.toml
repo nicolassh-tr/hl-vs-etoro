@@ -3,5 +3,7 @@ main = "index.js"
 compatibility_date = "2024-11-01"
 
 # [vars]
-# ETORO_FUNCTIONS_BASE = "https://your-host"
-# Optional per-feed full URLs: ETORO_CANDLES_NQ, ETORO_CANDLES_GOLD, …
+# ETORO_INSTRUMENT_OIL = "17"
+# ETORO_INSTRUMENT_NQ = "…"
+# ETORO_CANDLE_HOST = "https://candle.etoro.com"
+# ETORO_FUNCTIONS_BASE = "https://…"   # legacy fallback when no instrument id

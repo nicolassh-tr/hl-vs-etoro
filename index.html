@@ -79,11 +79,11 @@ function hlUrl() {
   return API_ROUTE_PREFIX != null ? API_ROUTE_PREFIX + "/hl" : "https://api.hyperliquid.xyz/info";
 }
 /**
- * eToro candles: same pattern as HL — direct GET to JSON HTTP endpoints (no auth in this app).
- * Hyperliquid works everywhere because api.hyperliquid.xyz is their public API. eToro retail has no
- * equivalent URL in-browser; these /functions/* URLs are the integration you had before.
- * Override: ETORO_FUNCTIONS_BASE in this file, ?etoroBase=, localStorage hlvs_etoro_functions_base,
- * or use Vercel /api/etoro/* (server proxies when /api/health exists).
+ * eToro: official chart API is https://candle.etoro.com/candles/asc.json/OneMinute/2/{instrumentId}
+ * (see Network on www.etoro.com). It only allows Origin https://www.etoro.com, so this app calls it
+ * from Vercel /api/etoro/* (or your Worker). Oil defaults to instrument 17. Set ETORO_INSTRUMENT_*
+ * in Vercel for NQ / Gold / NatGas (IDs from the same Network tab). Without /api, browser falls back
+ * to legacy /functions/* URLs (etoroBase / ETORO_FUNCTIONS_BASE).
  */
 const ETORO_FUNCTION_FILE = {
   nq: "etoroCandles",

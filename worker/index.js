@@ -1,12 +1,5 @@
 const HL_INFO = "https://api.hyperliquid.xyz/info";
 
-const ETORO_ENV = {
-  nq: "ETORO_CANDLES_NQ",
-  gold: "ETORO_CANDLES_GOLD",
-  oil: "ETORO_CANDLES_OIL",
-  natgas: "ETORO_CANDLES_NATGAS",
-};
-
 const FUNCTION_FILE = {
   nq: "etoroCandles",
   gold: "etoroGoldCandles",
@@ -16,6 +9,40 @@ const FUNCTION_FILE = {
 
 const DEFAULT_FUNCTIONS_BASE = "https://sidekick-c26b0845.base44.app";
 
+const INSTRUMENT_ENV = {
+  nq: "ETORO_INSTRUMENT_NQ",
+  gold: "ETORO_INSTRUMENT_GOLD",
+  oil: "ETORO_INSTRUMENT_OIL",
+  natgas: "ETORO_INSTRUMENT_NATGAS",
+};
+
+const DEFAULT_INSTRUMENT_ID = {
+  oil: "17",
+};
+
+function normalizeCandleResponse(json) {
+  if (!json || !Array.isArray(json.Candles) || json.Candles.length === 0) return [];
+  const inner = json.Candles[0].Candles;
+  if (!Array.isArray(inner)) return [];
+  return inner.map((c) => {
+    const t = new Date(c.FromDate).getTime();
+    return {
+      t,
+      time: new Date(t).toISOString().slice(11, 16),
+      open: Number(c.Open),
+      high: Number(c.High),
+      low: Number(c.Low),
+      close: Number(c.Close),
+    };
+  });
+}
+
+function legacyEtoroUrl(env, key) {
+  const base = (env.ETORO_FUNCTIONS_BASE && String(env.ETORO_FUNCTIONS_BASE).trim()) || DEFAULT_FUNCTIONS_BASE;
+  const file = FUNCTION_FILE[key];
+  return `${base.replace(/\/$/, "")}/functions/${file}`;
+}
+
 function corsHeaders(request) {
   const o = request.headers.get("Origin");
   return {
@@ -24,15 +51,6 @@ function corsHeaders(request) {
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
   };
-}
-
-function etoroUpstream(env, key) {
-  const k = ETORO_ENV[key];
-  const specific = k && env[k] && String(env[k]).trim();
-  const base = (env.ETORO_FUNCTIONS_BASE && String(env.ETORO_FUNCTIONS_BASE).trim()) || DEFAULT_FUNCTIONS_BASE;
-  const file = FUNCTION_FILE[key];
-  if (specific) return specific;
-  return `${base.replace(/\/$/, "")}/functions/${file}`;
 }
 
 export default {
@@ -60,13 +78,54 @@ export default {
     const m = path.match(/^\/etoro\/(nq|gold|oil|natgas)$/);
     if (m) {
       if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405, headers: h });
-      const target = etoroUpstream(env, m[1]);
-      const r = await fetch(target, { headers: { Accept: "application/json" } });
-      const text = await r.text();
-      return new Response(text, {
-        status: r.status,
-        headers: { ...h, "Content-Type": r.headers.get("content-type") || "application/json" },
-      });
+      const key = m[1];
+      const envK = INSTRUMENT_ENV[key];
+      const fromEnv = envK && env[envK] && String(env[envK]).trim();
+      const instId = fromEnv || DEFAULT_INSTRUMENT_ID[key];
+
+      try {
+        if (instId) {
+          const host =
+            (env.ETORO_CANDLE_HOST && String(env.ETORO_CANDLE_HOST).trim()) || "https://candle.etoro.com";
+          const reqId = crypto.randomUUID();
+          const cUrl = `${host.replace(/\/$/, "")}/candles/asc.json/OneMinute/2/${instId}?client_request_id=${encodeURIComponent(reqId)}`;
+          const r = await fetch(cUrl, { headers: { Accept: "application/json" } });
+          const text = await r.text();
+          if (!r.ok) {
+            return new Response(text.slice(0, 2000), {
+              status: r.status,
+              headers: { ...h, "Content-Type": r.headers.get("content-type") || "text/plain" },
+            });
+          }
+          let json;
+          try {
+            json = JSON.parse(text);
+          } catch {
+            return new Response(JSON.stringify({ error: "Invalid JSON from candle API" }), {
+              status: 502,
+              headers: { ...h, "Content-Type": "application/json" },
+            });
+          }
+          const candles = normalizeCandleResponse(json);
+          return new Response(JSON.stringify(candles), {
+            status: 200,
+            headers: { ...h, "Content-Type": "application/json" },
+          });
+        }
+
+        const leg = legacyEtoroUrl(env, key);
+        const r = await fetch(leg, { headers: { Accept: "application/json" } });
+        const text = await r.text();
+        return new Response(text, {
+          status: r.status,
+          headers: { ...h, "Content-Type": r.headers.get("content-type") || "application/json" },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: String(e && e.message) }), {
+          status: 502,
+          headers: { ...h, "Content-Type": "application/json" },
+        });
+      }
     }
 
     if (path === "/health") return new Response("ok", { status: 200, headers: h });
