@@ -10,7 +10,8 @@ param(
 $ErrorActionPreference = "Stop"
 $reqId = [guid]::NewGuid().ToString()
 $base = $CandleHost.TrimEnd("/")
-$url = "$base/candles/asc.json/OneMinute/2/${InstrumentId}?client_request_id=$reqId"
+$barCount = 1440
+$url = "$base/candles/asc.json/OneMinute/${barCount}/${InstrumentId}?client_request_id=$reqId"
 
 Write-Host "GET $url" -ForegroundColor Cyan
 $r = Invoke-WebRequest -Uri $url -UseBasicParsing -Headers @{ Accept = "application/json" }

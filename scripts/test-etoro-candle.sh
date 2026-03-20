@@ -5,7 +5,7 @@ set -euo pipefail
 ID="${1:-17}"
 HOST="${ETORO_CANDLE_HOST:-https://candle.etoro.com}"
 REQ_ID="$(command -v uuidgen >/dev/null && uuidgen || cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "cli-$(date +%s)")"
-URL="${HOST%/}/candles/asc.json/OneMinute/2/${ID}?client_request_id=${REQ_ID}"
+URL="${HOST%/}/candles/asc.json/OneMinute/1440/${ID}?client_request_id=${REQ_ID}"
 echo "GET $URL"
 code="$(curl -sS -o /tmp/etoro-candle.json -w "%{http_code}" -H "Accept: application/json" "$URL")"
 if [[ "$code" != "200" ]]; then

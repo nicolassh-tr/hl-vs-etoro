@@ -11,6 +11,8 @@ import { randomUUID } from "crypto";
 
 const LEGACY_BASE = "https://sidekick-c26b0845.base44.app";
 const CANDLE_HOST = "https://candle.etoro.com";
+/** Match index.html / HL: ~24h of 1m bars (segment was wrongly "2" = only two minutes). */
+const CANDLE_1M_BAR_COUNT = 1440;
 
 const LEGACY_FILES = {
   nq: "etoroCandles",
@@ -84,7 +86,7 @@ async function main() {
       if (id) {
         try {
           const reqId = randomUUID();
-          const url = `${CANDLE_HOST}/candles/asc.json/OneMinute/2/${id}?client_request_id=${encodeURIComponent(reqId)}`;
+          const url = `${CANDLE_HOST}/candles/asc.json/OneMinute/${CANDLE_1M_BAR_COUNT}/${id}?client_request_id=${encodeURIComponent(reqId)}`;
           const j = await fetchJson(url);
           const arr = normalizeCandleResponse(j);
           if (arr.length) etoro[key] = arr;

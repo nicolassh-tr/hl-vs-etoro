@@ -69,7 +69,7 @@ Reload the site.
 
 ### Official chart API
 
-`GET https://candle.etoro.com/candles/asc.json/OneMinute/2/{instrumentId}?client_request_id=…`
+`GET https://candle.etoro.com/candles/asc.json/OneMinute/1440/{instrumentId}?client_request_id=…` — `1440` is the number of **1-minute** bars (~24h), aligned with the Hyperliquid snapshot window (not “2 days”; `OneMinute/2/` is only two bars).
 
 Used **inside the Worker** (or any server proxy), not from the browser on GitHub Pages.
 

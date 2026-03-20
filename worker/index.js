@@ -1,4 +1,6 @@
 const HL_INFO = "https://api.hyperliquid.xyz/info";
+/** eToro path OneMinute/{n}: n = count of 1m bars (~24h, matches HL candle window in the app). */
+const ETORO_CANDLE_1M_BAR_COUNT = 1440;
 
 const FUNCTION_FILE = {
   nq: "etoroCandles",
@@ -88,7 +90,7 @@ export default {
           const host =
             (env.ETORO_CANDLE_HOST && String(env.ETORO_CANDLE_HOST).trim()) || "https://candle.etoro.com";
           const reqId = crypto.randomUUID();
-          const cUrl = `${host.replace(/\/$/, "")}/candles/asc.json/OneMinute/2/${instId}?client_request_id=${encodeURIComponent(reqId)}`;
+          const cUrl = `${host.replace(/\/$/, "")}/candles/asc.json/OneMinute/${ETORO_CANDLE_1M_BAR_COUNT}/${instId}?client_request_id=${encodeURIComponent(reqId)}`;
           const r = await fetch(cUrl, { headers: { Accept: "application/json" } });
           const text = await r.text();
           if (!r.ok) {

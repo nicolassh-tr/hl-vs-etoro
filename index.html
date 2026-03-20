@@ -136,6 +136,8 @@ function hlUrl() {
  * Override IDs: ?etoroId_oil=17 &etoroId_nq=… or localStorage hlvs_etoro_id_oil etc.
  */
 const ETORO_CANDLE_HOST_BROWSER = "https://candle.etoro.com";
+/** Path segment OneMinute/{n}: n = count of 1m bars (1440 ≈ 24h, same window as HL). */
+const ETORO_CANDLE_1M_BAR_COUNT = 1440;
 const ETORO_BROWSER_INSTRUMENT_DEFAULT = { nq: "", gold: "", oil: "17", natgas: "" };
 const ETORO_FUNCTION_FILE = {
   nq: "etoroCandles",
@@ -182,7 +184,7 @@ function normalizeEtoroCandleApiJson(json) {
 function buildEtoroCandleBrowserUrl(instrumentId) {
   const reqId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(36).slice(2);
   const host = ETORO_CANDLE_HOST_BROWSER.replace(/\/$/, "");
-  return host + "/candles/asc.json/OneMinute/2/" + instrumentId + "?client_request_id=" + encodeURIComponent(reqId);
+  return host + "/candles/asc.json/OneMinute/" + ETORO_CANDLE_1M_BAR_COUNT + "/" + instrumentId + "?client_request_id=" + encodeURIComponent(reqId);
 }
 async function fetchEtoroFeed(name) {
   if (API_ROUTE_PREFIX != null) {
