@@ -45,7 +45,11 @@ jobs:
           mkdir -p _site
           cp index.html _site/
           cp cached-feed.json _site/
-          wc -c _site/cached-feed.json
+          echo "## Pages artifact" >> "$GITHUB_STEP_SUMMARY"
+          ls -la _site >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**cached-feed.json bytes:** $(wc -c < _site/cached-feed.json)" >> "$GITHUB_STEP_SUMMARY"
+          echo "**updatedAt prefix:** $(head -c 80 _site/cached-feed.json)" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
