@@ -229,12 +229,13 @@ function safeMax(arr) { return arr.reduce((m, v) => v > m ? v : m, arr[0]); }
 function roundMin(t) { return Math.round(t / 60000) * 60000; }
 function trimToOverlap(a, b) {
   if (!a.length || !b.length) return { a, b };
-  const aN = a.map(c => ({ ...c, t: roundMin(c.t) }));
-  const bN = b.map(c => ({ ...c, t: roundMin(c.t) }));
-  const start = Math.max(aN[0].t, bN[0].t);
-  const end = Math.min(aN[aN.length - 1].t, bN[bN.length - 1].t);
-  if (start > end) return { a, b };
-  return { a: aN.filter(c => c.t >= start && c.t <= end), b: bN.filter(c => c.t >= start && c.t <= end) };
+  const aByT = new Map();
+  a.forEach(c => { const t = roundMin(c.t); aByT.set(t, { ...c, t }); });
+  const bByT = new Map();
+  b.forEach(c => { const t = roundMin(c.t); bByT.set(t, { ...c, t }); });
+  const common = [...aByT.keys()].filter(t => bByT.has(t)).sort((x, y) => x - y);
+  if (!common.length) return { a, b };
+  return { a: common.map(t => aByT.get(t)), b: common.map(t => bByT.get(t)) };
 }
 function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
   const canvasRef = useRef(null);
@@ -261,6 +262,15 @@ function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
   const yTicks = Array.from({ length: yTickCount }, (_, i) => lo + (rangeP / (yTickCount - 1)) * i);
   const xTickCount = 6;
   const xTicks = Array.from({ length: xTickCount }, (_, i) => Math.round(i * (aCandles.length - 1) / (xTickCount - 1)));
+  const multiDay = aCandles.length >= 2 && new Date(aCandles[0].t).toDateString() !== new Date(aCandles[aCandles.length - 1].t).toDateString();
+  const fmtXLabel = (c) => {
+    if (!c) return "";
+    const d = new Date(c.t);
+    const hm = d.toISOString().slice(11, 16);
+    if (!multiDay) return hm;
+    const md = String(d.getUTCMonth() + 1) + "/" + String(d.getUTCDate());
+    return md + " " + hm;
+  };
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !aCandles.length || !bCandles.length) return;
@@ -275,7 +285,8 @@ function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
     ctx.fillStyle = "#64748b"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "right";
     yTicks.forEach(v => { ctx.fillText(fmtPrice(v), PAD_L - 6, toY(v) + 4); });
     ctx.textAlign = "center";
-    xTicks.forEach(idx => { ctx.fillText(aCandles[idx]?.time || "", toX(idx, aCandles.length), height - 8); });
+    ctx.font = (multiDay ? "9" : "11") + "px system-ui, sans-serif";
+    xTicks.forEach(idx => { ctx.fillText(fmtXLabel(aCandles[idx]), toX(idx, aCandles.length), height - 8); });
     ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(PAD_L, PAD_T); ctx.lineTo(PAD_L, PAD_T + H); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(PAD_L, PAD_T + H); ctx.lineTo(PAD_L + W, PAD_T + H); ctx.stroke();
@@ -295,10 +306,20 @@ function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
       const tooltipX = hx + 8 > PAD_L + W - 160 ? hx - 168 : hx + 8;
       ctx.fillStyle = "rgba(255,255,255,0.97)"; ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
       const rr = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r); ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r); ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r); ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath(); };
-      rr(ctx, tooltipX, PAD_T+6, 158, 46, 5); ctx.fill(); ctx.stroke();
+      const ttW = multiDay ? 190 : 158;
+      const ttH = multiDay ? 60 : 46;
+      rr(ctx, tooltipX, PAD_T+6, ttW, ttH, 5); ctx.fill(); ctx.stroke();
       ctx.font = "bold 12px system-ui, sans-serif"; ctx.textAlign = "left";
-      ctx.fillStyle = aColor; ctx.fillText("eT:  " + fmtPrice(aCandles[hovered].close), tooltipX+10, PAD_T+24);
-      ctx.fillStyle = bColor; ctx.fillText("HL:  " + fmtPrice(bCandles[hovered]?.close ?? 0), tooltipX+10, PAD_T+42);
+      if (multiDay) {
+        ctx.fillStyle = "#64748b"; ctx.font = "10px system-ui, sans-serif";
+        ctx.fillText(fmtXLabel(aCandles[hovered]), tooltipX+10, PAD_T+18);
+        ctx.font = "bold 12px system-ui, sans-serif";
+        ctx.fillStyle = aColor; ctx.fillText("eT:  " + fmtPrice(aCandles[hovered].close), tooltipX+10, PAD_T+34);
+        ctx.fillStyle = bColor; ctx.fillText("HL:  " + fmtPrice(bCandles[hovered]?.close ?? 0), tooltipX+10, PAD_T+50);
+      } else {
+        ctx.fillStyle = aColor; ctx.fillText("eT:  " + fmtPrice(aCandles[hovered].close), tooltipX+10, PAD_T+24);
+        ctx.fillStyle = bColor; ctx.fillText("HL:  " + fmtPrice(bCandles[hovered]?.close ?? 0), tooltipX+10, PAD_T+42);
+      }
     }
   }, [wrapW, height, aCandles, bCandles, hovered, aColor, bColor]);
   return (
