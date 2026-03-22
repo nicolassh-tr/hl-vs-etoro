@@ -228,14 +228,18 @@ function safeMin(arr) { return arr.reduce((m, v) => v < m ? v : m, arr[0]); }
 function safeMax(arr) { return arr.reduce((m, v) => v > m ? v : m, arr[0]); }
 function roundMin(t) { return Math.round(t / 60000) * 60000; }
 function trimToOverlap(a, b) {
-  if (!a.length || !b.length) return { a, b };
+  if (!a.length || !b.length) return { a: [], b: [], noOverlap: true };
   const aByT = new Map();
   a.forEach(c => { const t = roundMin(c.t); aByT.set(t, { ...c, t }); });
   const bByT = new Map();
   b.forEach(c => { const t = roundMin(c.t); bByT.set(t, { ...c, t }); });
   const common = [...aByT.keys()].filter(t => bByT.has(t)).sort((x, y) => x - y);
-  if (!common.length) return { a, b };
-  return { a: common.map(t => aByT.get(t)), b: common.map(t => bByT.get(t)) };
+  if (!common.length) {
+    const aDate = new Date(a[a.length - 1].t).toISOString().slice(0, 10);
+    const bDate = new Date(b[b.length - 1].t).toISOString().slice(0, 10);
+    return { a: [], b: [], noOverlap: true, reason: aDate === bDate ? "no matching minutes" : "different dates (eToro " + aDate + " vs HL " + bDate + ")" };
+  }
+  return { a: common.map(t => aByT.get(t)), b: common.map(t => bByT.get(t)), noOverlap: false };
 }
 function OverlayChart({ aCandles, bCandles, aColor, bColor, height }) {
   const canvasRef = useRef(null);
@@ -360,7 +364,20 @@ function SkewSynopsis({ instruments }) {
               </div>
             </div>
           );
-          const { a: eC, b: hC } = trimToOverlap(etCandles, hlCandles);
+          const overlap = trimToOverlap(etCandles, hlCandles);
+          const eC = overlap.a, hC = overlap.b;
+          if (overlap.noOverlap || !eC.length) return (
+            <div key={label} style={{ borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+              <div style={{ background: "#f8fafc", padding: "6px 10px", display: "flex", alignItems: "center", gap: 5, borderBottom: "1px solid #e2e8f0" }}>
+                <span style={{ fontSize: 14 }}>{icon}</span>
+                <span style={{ fontWeight: 800, fontSize: 12, color: "#0f172a" }}>{label}</span>
+              </div>
+              <div style={{ padding: "10px", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>⚠️ {overlap.reason || "No overlap"}</div>
+                <div style={{ fontSize: 9, color: "#94a3b8" }}>Spread needs same-date bars</div>
+              </div>
+            </div>
+          );
           const hMap = new Map(hC.map(c => [Math.round(c.t / 60000) * 60000, c.close]));
           const eLast = eC[eC.length - 1], hLast = hC[hC.length - 1];
           const eLastT = eLast ? Math.round(eLast.t / 60000) * 60000 : null;
@@ -405,26 +422,30 @@ function SectionHeader({ label }) {
   );
 }
 function InstrumentPanel({ aLabel, aTag, aColor, aCandles, aSymbol, bLabel, bTag, bColor, bCandles, width, isMobile }) {
-  const { a: eToroTrimmed, b: hlTrimmed } = trimToOverlap(bCandles, aCandles);
-  const eFinal = eToroTrimmed.length ? eToroTrimmed : bCandles;
-  const hFinal = hlTrimmed.length ? hlTrimmed : aCandles;
-  if (!eFinal.length && !hFinal.length) return <div style={{ textAlign: "center", padding: 20, color: "#94a3b8", fontSize: 12 }}>No data</div>;
-  const eLast = eFinal[eFinal.length - 1], hLast = hFinal[hFinal.length - 1];
-  const eFirst = eFinal[0], hFirst = hFinal[0];
-  const eChg = eFirst && eLast ? (eLast.close - eFirst.open) / eFirst.open * 100 : 0;
-  const hChg = hFirst && hLast ? (hLast.close - hFirst.open) / hFirst.open * 100 : 0;
+  const overlap = trimToOverlap(bCandles, aCandles);
+  const eFinal = overlap.a;
+  const hFinal = overlap.b;
+  const rawELast = bCandles.length ? bCandles[bCandles.length - 1] : null;
+  const rawHLast = aCandles.length ? aCandles[aCandles.length - 1] : null;
+  const rawEFirst = bCandles.length ? bCandles[0] : null;
+  const rawHFirst = aCandles.length ? aCandles[0] : null;
+  const eChg = rawEFirst && rawELast ? (rawELast.close - rawEFirst.open) / rawEFirst.open * 100 : 0;
+  const hChg = rawHFirst && rawHLast ? (rawHLast.close - rawHFirst.open) / rawHFirst.open * 100 : 0;
+  if (!bCandles.length && !aCandles.length) return <div style={{ textAlign: "center", padding: 20, color: "#94a3b8", fontSize: 12 }}>No data</div>;
+  const fmtDate = (c) => c ? new Date(c.t).toISOString().slice(0, 10) : "?";
   const card = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, marginBottom: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", padding: "10px 10px" };
   return (
     <>
       <div style={{ ...card, display: "flex", gap: 0 }}>
         {[
-          { label: bLabel, tag: bTag, color: bColor, last: eLast, chg: eChg, hasData: eFinal.length > 0, emptyHint: "No eToro feed" },
-          { label: aLabel, tag: aTag, color: aColor, last: hLast, chg: hChg, hasData: hFinal.length > 0, emptyHint: "No HL data" },
-        ].map(({ label, tag, color, last, chg, hasData, emptyHint }, i) => (
+          { label: bLabel, tag: bTag, color: bColor, last: rawELast, chg: eChg, hasData: bCandles.length > 0, emptyHint: "No eToro feed", date: fmtDate(rawELast) },
+          { label: aLabel, tag: aTag, color: aColor, last: rawHLast, chg: hChg, hasData: aCandles.length > 0, emptyHint: "No HL data", date: fmtDate(rawHLast) },
+        ].map(({ label, tag, color, last, chg, hasData, emptyHint, date }, i) => (
           <div key={tag} style={{ flex: 1, borderLeft: i > 0 ? "1px solid #f1f5f9" : "none", paddingLeft: i > 0 ? 14 : 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
               <span style={{ background: color === HL_COLOR ? "#0f172a" : color, color: "#fff", fontWeight: 900, fontSize: 10, padding: "2px 6px", borderRadius: 4 }}>{tag}</span>
               <span style={{ fontWeight: 700, fontSize: 12, color: "#0f172a" }}>{label}</span>
+              {hasData && overlap.noOverlap && <span style={{ fontSize: 9, color: "#94a3b8" }}>{date}</span>}
             </div>
             {hasData ? <>
               <div style={{ fontSize: 22, fontWeight: 900, color: chg >= 0 ? GREEN : RED, lineHeight: 1 }}>{fmt(last?.close)}</div>
@@ -443,7 +464,11 @@ function InstrumentPanel({ aLabel, aTag, aColor, aCandles, aSymbol, bLabel, bTag
           <OverlayChart aCandles={eFinal} bCandles={hFinal} aColor={bColor} bColor={aColor} height={isMobile ? 200 : 300} />
         </div>
       ) : (
-        <div style={{ ...card, textAlign: "center", padding: "14px", color: "#94a3b8", fontSize: 12 }}>⚠️ No overlay available</div>
+        <div style={{ ...card, textAlign: "center", padding: "14px", color: "#94a3b8", fontSize: 12 }}>
+          {overlap.noOverlap && overlap.reason
+            ? <>⚠️ No overlay — {overlap.reason}. Prices above are each source's latest.</>
+            : <>⚠️ No overlay available</>}
+        </div>
       )}
     </>
   );
