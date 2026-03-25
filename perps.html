@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Binance vs OKX Funding and Spot Comparison</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a33;
+      --panel-2: #0f1730;
+      --text: #e8eefc;
+      --muted: #93a4c3;
+      --accent: #7aa2ff;
+      --good: #4cd7a5;
+      --bad: #ff7a8a;
+      --border: rgba(255,255,255,0.08);
+      --shadow: 0 12px 32px rgba(0,0,0,0.25);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #162045 0%, var(--bg) 48%, #070b16 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1.5fr 1fr;
+      align-items: end;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .title-card { padding: 24px; }
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.05;
+    }
+    .subtitle { color: var(--muted); margin: 0; max-width: 70ch; }
+
+    .controls { padding: 18px; display: grid; gap: 12px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    label { color: var(--muted); font-size: 14px; }
+    input, button {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      padding: 12px 14px;
+      font-size: 14px;
+      outline: none;
+    }
+    input { min-width: 180px; }
+    button {
+      cursor: pointer;
+      background: linear-gradient(180deg, rgba(122,162,255,0.25), rgba(122,162,255,0.12));
+    }
+    button:hover { border-color: rgba(122,162,255,0.55); }
+
+    .statusbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 14px;
+      margin: 12px 0 18px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .exchange {
+      padding: 18px;
+    }
+
+    .exchange h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+    }
+
+    .exchange .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      margin-bottom: 14px;
+      font-size: 14px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .metric .label { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+    .metric .value { font-size: 20px; font-weight: 700; }
+    .metric .sub { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+    .table-card { margin-top: 16px; padding: 18px; overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 920px;
+    }
+    th, td {
+      text-align: left;
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      font-size: 14px;
+    }
+    th { color: var(--muted); font-weight: 600; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .pos { color: var(--good); }
+    .neg { color: var(--bad); }
+    .dim { color: var(--muted); }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .footer {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 900px) {
+      .hero, .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="card title-card">
+        <h1>Binance vs OKX funding and spot tracker</h1>
+        <p class="subtitle">
+          Live public-market comparison for perp funding and spot prices. The page polls Binance and OKX endpoints every 15 seconds.
+        </p>
+      </div>
+      <div class="card controls">
+        <div class="row">
+          <div>
+            <label for="symbolInput">Symbol</label><br />
+            <input id="symbolInput" value="BTC" placeholder="BTC, ETH, SOL..." />
+          </div>
+          <div style="align-self:end;">
+            <button id="refreshBtn">Refresh now</button>
+          </div>
+        </div>
+        <div class="row" id="pillRow">
+          <span class="pill">Binance spot: BTCUSDT</span>
+          <span class="pill">OKX spot: BTC-USDT</span>
+          <span class="pill">Binance perp: BTCUSDT</span>
+          <span class="pill">OKX perp: BTC-USDT-SWAP</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <div id="lastUpdated">Last updated: —</div>
+      <div id="status">Status: idle</div>
+    </div>
+
+    <div class="grid">
+      <div class="card exchange" id="binanceCard">
+        <h2>Binance</h2>
+        <div class="meta">
+          <div id="binanceSymbolMeta">Symbol: —</div>
+          <div id="binanceTimeMeta">—</div>
+        </div>
+        <div class="metric-grid">
+          <div class="metric">
+            <div class="label">Funding rate</div>
+            <div class="value" id="binanceFunding">—</div>
+            <div class="sub" id="binanceFundingNext">Next funding: —</div>
+          </div>
+          <div class="metric">
+            <div class="label">Spot price</div>
+            <div class="value" id="binanceSpot">—</div>
+            <div class="sub">Public spot ticker</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card exchange" id="okxCard">
+        <h2>OKX</h2>
+        <div class="meta">
+          <div id="okxSymbolMeta">Symbol: —</div>
+          <div id="okxTimeMeta">—</div>
+        </div>
+        <div class="metric-grid">
+          <div class="metric">
+            <div class="label">Funding rate</div>
+            <div class="value" id="okxFunding">—</div>
+            <div class="sub" id="okxFundingNext">Next funding: —</div>
+          </div>
+          <div class="metric">
+            <div class="label">Spot price</div>
+            <div class="value" id="okxSpot">—</div>
+            <div class="sub">Public spot ticker</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Binance funding</th>
+            <th>Binance spot</th>
+            <th>OKX funding</th>
+            <th>OKX spot</th>
+            <th>Funding spread</th>
+            <th>Spot spread</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div class="footer">
+        The funding rate shown is the most recently published public funding rate from each exchange. Spot prices are the latest public spot tickers.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const symbols = ["BTC", "ETH", "SOL"];
+    const fmtPct = (n) => {
+      if (n === null || n === undefined || Number.isNaN(Number(n))) return "—";
+      const v = Number(n) * 100;
+      const sign = v > 0 ? "+" : "";
+      return `${sign}${v.toFixed(4)}%`;
+    };
+    const fmtPrice = (n) => {
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "—";
+      if (x >= 1000) return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      if (x >= 1) return x.toLocaleString(undefined, { maximumFractionDigits: 4 });
+      return x.toLocaleString(undefined, { maximumFractionDigits: 8 });
+    };
+    const fmtTime = (ms) => {
+      if (!ms) return "—";
+      return new Date(Number(ms)).toLocaleString();
+    };
+    const setText = (id, value) => { document.getElementById(id).textContent = value; };
+    const setClassBySign = (el, val) => {
+      el.classList.remove("pos", "neg");
+      if (val > 0) el.classList.add("pos");
+      if (val < 0) el.classList.add("neg");
+    };
+
+    async function fetchJson(url) {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
+      return res.json();
+    }
+
+    async function loadOne(sym) {
+      const binanceSpotSymbol = `${sym}USDT`;
+      const okxSpotSymbol = `${sym}-USDT`;
+      const okxSwapSymbol = `${sym}-USDT-SWAP`;
+
+      const [binanceFunding, binanceSpot, okxFunding, okxSpot] = await Promise.all([
+        fetchJson(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${encodeURIComponent(binanceSpotSymbol)}`),
+        fetchJson(`https://api.binance.com/api/v3/ticker/price?symbol=${encodeURIComponent(binanceSpotSymbol)}`),
+        fetchJson(`https://www.okx.com/api/v5/public/funding-rate?instId=${encodeURIComponent(okxSwapSymbol)}`),
+        fetchJson(`https://www.okx.com/api/v5/market/ticker?instId=${encodeURIComponent(okxSpotSymbol)}`)
+      ]);
+
+      return {
+        symbol: sym,
+        binance: {
+          fundingRate: Number(binanceFunding.lastFundingRate),
+          nextFundingTime: binanceFunding.nextFundingTime,
+          spot: Number(binanceSpot.price),
+          time: Date.now()
+        },
+        okx: {
+          fundingRate: Number(okxFunding.data?.[0]?.fundingRate),
+          nextFundingTime: okxFunding.data?.[0]?.nextFundingTime,
+          spot: Number(okxSpot.data?.[0]?.last),
+          time: Date.now()
+        }
+      };
+    }
+
+    function updatePills(sym) {
+      document.getElementById("pillRow").innerHTML = [
+        `Binance spot: ${sym}USDT`,
+        `OKX spot: ${sym}-USDT`,
+        `Binance perp: ${sym}USDT`,
+        `OKX perp: ${sym}-USDT-SWAP`
+      ].map(t => `<span class="pill">${t}</span>`).join("");
+    }
+
+    async function refresh() {
+      const requested = document.getElementById("symbolInput").value.trim().toUpperCase();
+      const sym = requested || "BTC";
+      updatePills(sym);
+      setText("status", "Status: loading...");
+
+      try {
+        const [selected, ...others] = await Promise.all([
+          loadOne(sym),
+          ...symbols.filter(s => s !== sym).map(loadOne)
+        ]);
+
+        const all = [selected, ...others].sort((a, b) => symbols.indexOf(a.symbol) - symbols.indexOf(b.symbol));
+        const current = all.find(x => x.symbol === sym) || selected;
+
+        setText("binanceSymbolMeta", `Symbol: ${current.symbol}USDT`);
+        setText("okxSymbolMeta", `Symbol: ${current.symbol}-USDT / ${current.symbol}-USDT-SWAP`);
+        setText("binanceTimeMeta", `Updated: ${fmtTime(current.binance.time)}`);
+        setText("okxTimeMeta", `Updated: ${fmtTime(current.okx.time)}`);
+
+        setText("binanceFunding", fmtPct(current.binance.fundingRate));
+        setText("binanceSpot", fmtPrice(current.binance.spot));
+        setText("binanceFundingNext", `Next funding: ${fmtTime(current.binance.nextFundingTime)}`);
+        setText("okxFunding", fmtPct(current.okx.fundingRate));
+        setText("okxSpot", fmtPrice(current.okx.spot));
+        setText("okxFundingNext", `Next funding: ${fmtTime(current.okx.nextFundingTime)}`);
+
+        setClassBySign(document.getElementById("binanceFunding"), current.binance.fundingRate);
+        setClassBySign(document.getElementById("okxFunding"), current.okx.fundingRate);
+
+        const rows = all.map(row => {
+          const fundingSpread = (row.binance.fundingRate ?? 0) - (row.okx.fundingRate ?? 0);
+          const spotSpread = (row.binance.spot ?? 0) - (row.okx.spot ?? 0);
+          const fundingClass = fundingSpread > 0 ? "pos" : fundingSpread < 0 ? "neg" : "";
+          const spotClass = spotSpread > 0 ? "pos" : spotSpread < 0 ? "neg" : "";
+          return `
+            <tr>
+              <td><strong>${row.symbol}</strong></td>
+              <td>${fmtPct(row.binance.fundingRate)}</td>
+              <td>${fmtPrice(row.binance.spot)}</td>
+              <td>${fmtPct(row.okx.fundingRate)}</td>
+              <td>${fmtPrice(row.okx.spot)}</td>
+              <td class="${fundingClass}">${fmtPct(fundingSpread)}</td>
+              <td class="${spotClass}">${fmtPrice(spotSpread)}</td>
+            </tr>
+          `;
+        }).join("");
+        document.getElementById("tableBody").innerHTML = rows;
+
+        setText("lastUpdated", `Last updated: ${new Date().toLocaleString()}`);
+        setText("status", "Status: live data loaded");
+      } catch (err) {
+        console.error(err);
+        setText("status", `Status: error — ${err.message}`);
+      }
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", refresh);
+    document.getElementById("symbolInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") refresh();
+    });
+
+    refresh();
+    setInterval(refresh, 15000);
+  </script>
+</body>
+</html>
