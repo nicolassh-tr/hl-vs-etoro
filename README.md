@@ -17,6 +17,8 @@ This hits `candle.etoro.com` directly (CLI, no CORS). Your static site still nee
 
 **Deploy end-to-end:** see **[DEPLOY.md](./DEPLOY.md)** (GitHub Pages + optional Worker).
 
+**Databricks + GitHub:** after you push to GitHub, pull in **Databricks Repos** (or deploy the separate `Nicolas_Cursor_Project` bundle). Details: **[DATABRICKS_SYNC.md](./DATABRICKS_SYNC.md)**.
+
 ---
 
 ## Free hosting (no paid subscription)
