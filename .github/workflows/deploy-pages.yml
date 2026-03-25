@@ -44,7 +44,6 @@ jobs:
           node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('cached-feed.json','utf8'));if(j.updatedAt==null||typeof j.updatedAt!=='string'){console.error('bad updatedAt',j);process.exit(1);}const L=Object.fromEntries(Object.keys(j.etoro).map(k=>[k,j.etoro[k].length]));console.log('cache ok',j.updatedAt,L);"
           mkdir -p _site
           cp index.html _site/
-          cp perps.html _site/
           cp cached-feed.json _site/
           echo "## Pages artifact" >> "$GITHUB_STEP_SUMMARY"
           ls -la _site >> "$GITHUB_STEP_SUMMARY"
