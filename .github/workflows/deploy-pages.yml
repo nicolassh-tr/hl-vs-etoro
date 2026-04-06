@@ -34,9 +34,10 @@ jobs:
       - uses: actions/configure-pages@v5
       - name: Build static site (eToro cache + HTML)
         env:
-          ETORO_INSTRUMENT_OIL: ${{ vars.ETORO_INSTRUMENT_OIL }}
           ETORO_INSTRUMENT_NQ: ${{ vars.ETORO_INSTRUMENT_NQ }}
           ETORO_INSTRUMENT_GOLD: ${{ vars.ETORO_INSTRUMENT_GOLD }}
+          ETORO_INSTRUMENT_SILVER: ${{ vars.ETORO_INSTRUMENT_SILVER }}
+          ETORO_INSTRUMENT_OIL: ${{ vars.ETORO_INSTRUMENT_OIL }}
           ETORO_INSTRUMENT_NATGAS: ${{ vars.ETORO_INSTRUMENT_NATGAS }}
         run: |
           set -e
