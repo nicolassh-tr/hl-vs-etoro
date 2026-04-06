@@ -199,7 +199,7 @@ async function fetchEtoroFeed(name) {
     if (instId) {
       try {
         const url = buildEtoroCandleBrowserUrl(instId);
-        const res = await fetchWithTimeout(url);
+        const res = await fetchWithTimeout(url, {}, 3000);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const json = await res.json();
         const arr = normalizeEtoroCandleApiJson(json);
@@ -526,6 +526,8 @@ function HLvsToro() {
   const [hlSilverCandles, setHlSilverCandles] = useState([]);
   const [etSilverCandles, setEtSilverCandles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
   const [loadWarning, setLoadWarning] = useState(null);
   const containerRef = useRef(null);
@@ -535,8 +537,10 @@ function HLvsToro() {
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
+  const isFirstLoad = useRef(true);
   const load = async () => {
-    setLoading(true); setError(null); setLoadWarning(null);
+    if (isFirstLoad.current) setLoading(true); else setRefreshing(true);
+    setError(null); setLoadWarning(null);
     etoroStaleHints.clear();
     await resolveDataApiPrefix();
     await resolveCachedEtoroFeed();
@@ -561,7 +565,8 @@ function HLvsToro() {
         setLoadWarning((w) => (w ? w + " " : "") + extra);
       }
     } catch (err) { setError(fetchErrorHint(err)); }
-    setLoading(false);
+    setLoading(false); setRefreshing(false); isFirstLoad.current = false;
+    setLastUpdated(new Date());
   };
   useEffect(() => { load(); const id = setInterval(load, 60 * 1000); return () => clearInterval(id); }, []);
   if (loading) return (
@@ -584,9 +589,12 @@ function HLvsToro() {
       <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "10px 14px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontWeight: 900, fontSize: 15 }}>HL vs eToro</div>
-          <div style={{ fontSize: 10, color: "#94a3b8" }}>1-min candles · live · UTC</div>
+          <div style={{ fontSize: 10, color: "#94a3b8" }}>
+            {lastUpdated ? "Updated " + lastUpdated.toLocaleTimeString() : "1-min candles · live · UTC"}
+            {refreshing && " · refreshing…"}
+          </div>
         </div>
-        <button onClick={load} style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🔄 Refresh</button>
+        <button onClick={load} disabled={refreshing} style={{ background: refreshing ? "#e2e8f0" : "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: refreshing ? "wait" : "pointer", fontSize: 12, fontWeight: 600 }}>{refreshing ? "⏳" : "🔄"} Refresh</button>
       </div>
       <div style={{ padding: "12px 8px", maxWidth: 1400, margin: "0 auto" }}>
         {loadWarning && (
