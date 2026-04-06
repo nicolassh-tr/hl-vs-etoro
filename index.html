@@ -547,12 +547,13 @@ function HLvsToro() {
     setLastUpdated(new Date());
   };
   loadRef.current = load;
-  const [countdown, setCountdown] = useState(60);
+  const REFRESH_SEC = 600;
+  const [countdown, setCountdown] = useState(REFRESH_SEC);
   useEffect(() => {
     loadRef.current();
     const tick = setInterval(() => {
       setCountdown(prev => {
-        if (prev <= 1) { loadRef.current(); return 60; }
+        if (prev <= 1) { loadRef.current(); return REFRESH_SEC; }
         return prev - 1;
       });
     }, 1000);
@@ -585,8 +586,8 @@ function HLvsToro() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 10, color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}>{countdown}s</span>
-          <button onClick={() => { setCountdown(60); loadRef.current(); }} disabled={refreshing} style={{ background: refreshing ? "#e2e8f0" : "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: refreshing ? "wait" : "pointer", fontSize: 12, fontWeight: 600 }}>{refreshing ? "⏳" : "🔄"} Refresh</button>
+          <span style={{ fontSize: 10, color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}>{Math.floor(countdown/60)}:{String(countdown%60).padStart(2,"0")}</span>
+          <button onClick={() => { setCountdown(REFRESH_SEC); loadRef.current(); }} disabled={refreshing} style={{ background: refreshing ? "#e2e8f0" : "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: refreshing ? "wait" : "pointer", fontSize: 12, fontWeight: 600 }}>{refreshing ? "⏳" : "🔄"} Refresh</button>
         </div>
       </div>
       <div style={{ padding: "12px 8px", maxWidth: 1400, margin: "0 auto" }}>
