@@ -92,7 +92,7 @@ async function resolveCachedEtoroFeed() {
   const root = appOriginPath();
   if (!root) return;
   try {
-    const r = await fetchWithTimeout(root + "/cached-feed.json", { method: "GET", cache: "no-store" }, 12000);
+    const r = await fetchWithTimeout(root + "/cached-feed.json?_=" + Date.now(), { method: "GET", cache: "no-store" }, 12000);
     if (!r.ok) return;
     const j = await r.json();
     if (j && j.etoro && typeof j.etoro === "object") CACHED_ETORO_FEED = j;

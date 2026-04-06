@@ -8,8 +8,7 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # Refresh same-origin eToro cache (~4×/day). Disable by removing this block if you prefer push-only updates.
-    - cron: "25 6,12,18,0 * * *"
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: read
