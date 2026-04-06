@@ -116,7 +116,10 @@ function takeStaleEtoroBars(name) {
   if (CACHED_ETORO_FEED) {
     const arr = CACHED_ETORO_FEED.etoro[name];
     if (Array.isArray(arr) && arr.length) {
-      etoroStaleHints.add(name + " · snapshot from GitHub (cached-feed.json)");
+      const age = CACHED_ETORO_FEED.updatedAt ? Math.round((Date.now() - new Date(CACHED_ETORO_FEED.updatedAt).getTime()) / 60000) : null;
+      if (age != null && age > 5) {
+        etoroStaleHints.add(name + " · CI data " + age + " min ago");
+      }
       return arr;
     }
   }
@@ -564,7 +567,8 @@ function HLvsToro() {
         <div>
           <div style={{ fontWeight: 900, fontSize: 15 }}>HL vs eToro</div>
           <div style={{ fontSize: 10, color: "#94a3b8" }}>
-            {lastUpdated ? "Updated " + lastUpdated.toLocaleTimeString() : "1-min candles · live · UTC"}
+            {lastUpdated ? "Loaded " + lastUpdated.toLocaleTimeString() : "1-min candles · UTC"}
+            {CACHED_ETORO_FEED && CACHED_ETORO_FEED.updatedAt && (" · eToro data: " + new Date(CACHED_ETORO_FEED.updatedAt).toLocaleTimeString())}
             {refreshing && " · refreshing…"}
           </div>
         </div>
