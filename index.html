@@ -515,6 +515,7 @@ function HLvsToro() {
     return () => ro.disconnect();
   }, []);
   const isFirstLoad = useRef(true);
+  const loadRef = useRef(null);
   const load = async () => {
     if (isFirstLoad.current) setLoading(true); else setRefreshing(true);
     setError(null); setLoadWarning(null);
@@ -545,7 +546,18 @@ function HLvsToro() {
     setLoading(false); setRefreshing(false); isFirstLoad.current = false;
     setLastUpdated(new Date());
   };
-  useEffect(() => { load(); const id = setInterval(load, 60 * 1000); return () => clearInterval(id); }, []);
+  loadRef.current = load;
+  const [countdown, setCountdown] = useState(60);
+  useEffect(() => {
+    loadRef.current();
+    const tick = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { loadRef.current(); return 60; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(tick);
+  }, []);
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", flexDirection: "column", gap: 14, background: "#f8fafc" }}>
       <div style={{ width: 32, height: 32, border: "3px solid #00e5a0", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
@@ -572,7 +584,10 @@ function HLvsToro() {
             {refreshing && " · refreshing…"}
           </div>
         </div>
-        <button onClick={load} disabled={refreshing} style={{ background: refreshing ? "#e2e8f0" : "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: refreshing ? "wait" : "pointer", fontSize: 12, fontWeight: 600 }}>{refreshing ? "⏳" : "🔄"} Refresh</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 10, color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}>{countdown}s</span>
+          <button onClick={() => { setCountdown(60); loadRef.current(); }} disabled={refreshing} style={{ background: refreshing ? "#e2e8f0" : "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 12px", cursor: refreshing ? "wait" : "pointer", fontSize: 12, fontWeight: 600 }}>{refreshing ? "⏳" : "🔄"} Refresh</button>
+        </div>
       </div>
       <div style={{ padding: "12px 8px", maxWidth: 1400, margin: "0 auto" }}>
         {loadWarning && (
