@@ -3,8 +3,8 @@
  * cached-feed.json for same-origin load on GitHub Pages (browser CORS bypass).
  *
  * Always exits 0 and always writes cached-feed.json (CI copies it next to index.html).
- * Optional repo Variables: ETORO_INSTRUMENT_NQ, ETORO_INSTRUMENT_GOLD, ETORO_INSTRUMENT_NATGAS
- * (plus ETORO_INSTRUMENT_OIL, default 17) so candle.etoro.com fills symbols Base44 blocks from datacenters.
+ * Default instrument IDs are baked in for the 24/7 products. Override via repo Variables:
+ * ETORO_INSTRUMENT_NQ, ETORO_INSTRUMENT_GOLD, ETORO_INSTRUMENT_SILVER, ETORO_INSTRUMENT_OIL, ETORO_INSTRUMENT_NATGAS.
  */
 import fs from "fs";
 import { randomUUID } from "crypto";
@@ -15,13 +15,14 @@ const CANDLE_HOST = "https://candle.etoro.com";
 const CANDLE_1M_BAR_COUNT = 1440;
 
 const LEGACY_FILES = {
-  nq: "etoroCandles",
-  gold: "etoroGoldCandles",
-  oil: "etoroOilCandles",
-  natgas: "etoroNatGasCandles",
+  nq: "etoroNQ247Candles",
+  gold: "etoroGold247Candles",
+  silver: "etoroSilver247Candles",
+  oil: "etoroOil247Candles",
+  natgas: "etoroNatGas247Candles",
 };
 
-const KEYS = ["nq", "gold", "oil", "natgas"];
+const KEYS = ["nq", "gold", "silver", "oil", "natgas"];
 
 const BROWSER_HEADERS = {
   Accept: "application/json",
@@ -32,10 +33,11 @@ const BROWSER_HEADERS = {
 
 function candleIdsFromEnv() {
   return {
-    nq: (process.env.ETORO_INSTRUMENT_NQ || "").trim(),
-    gold: (process.env.ETORO_INSTRUMENT_GOLD || "").trim(),
-    oil: (process.env.ETORO_INSTRUMENT_OIL || "17").trim(),
-    natgas: (process.env.ETORO_INSTRUMENT_NATGAS || "").trim(),
+    nq: (process.env.ETORO_INSTRUMENT_NQ || "686").trim(),
+    gold: (process.env.ETORO_INSTRUMENT_GOLD || "559").trim(),
+    silver: (process.env.ETORO_INSTRUMENT_SILVER || "783").trim(),
+    oil: (process.env.ETORO_INSTRUMENT_OIL || "784").trim(),
+    natgas: (process.env.ETORO_INSTRUMENT_NATGAS || "782").trim(),
   };
 }
 
@@ -77,7 +79,7 @@ function writeCachedFeed(etoro) {
 }
 
 async function main() {
-  const etoro = { nq: [], gold: [], oil: [], natgas: [] };
+  const etoro = { nq: [], gold: [], silver: [], oil: [], natgas: [] };
   const ids = candleIdsFromEnv();
 
   try {

@@ -17,7 +17,7 @@ Summary:
 Smoke test (replace `YOUR_WORKER` with your `*.workers.dev` origin, no trailing slash):
 
 - `https://YOUR_WORKER/health` → `ok`
-- `https://YOUR_WORKER/etoro/oil` → JSON array of candles
+- `https://YOUR_WORKER/etoro/oil` → JSON array of candles (also `/etoro/nq`, `/gold`, `/silver`, `/natgas`)
 
 ## GitHub Pages
 

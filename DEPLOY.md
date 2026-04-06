@@ -23,7 +23,7 @@ That means Pages is still serving **files straight from the `main` branch**. The
 
 The workflow also runs on a **schedule** (4× daily UTC) and **`workflow_dispatch`** so you can refresh under **Actions → Deploy GitHub Pages → Run workflow**.
 
-**If only Oil fills in CI:** Base44 legacy URLs often return **403** from GitHub’s datacenter IPs. Oil still works via `candle.etoro.com` (instrument **17**). For NQ / Gold / NatGas in the cache, add repo **Settings → Secrets and variables → Actions → Variables** (not secrets): `ETORO_INSTRUMENT_NQ`, `ETORO_INSTRUMENT_GOLD`, `ETORO_INSTRUMENT_NATGAS` with the IDs from eToro’s site (Network tab on `candle.etoro.com` requests). Optional: `ETORO_INSTRUMENT_OIL` to override **17**.
+**eToro 24/7 instrument IDs (all baked in):** Base44 legacy URLs often return **403** from GitHub’s datacenter IPs. Defaults: NQ=686, Gold=559, Silver=783, Oil=784, NatGas=782. To override, add repo **Settings → Secrets and variables → Actions → Variables** (not secrets): `ETORO_INSTRUMENT_NQ`, `ETORO_INSTRUMENT_GOLD`, `ETORO_INSTRUMENT_SILVER`, `ETORO_INSTRUMENT_OIL`, `ETORO_INSTRUMENT_NATGAS` with the IDs from eToro’s site (Network tab on `candle.etoro.com` requests). All instruments now target the **24/7** eToro products — set `ETORO_INSTRUMENT_OIL` and `ETORO_INSTRUMENT_NATGAS` with the correct numeric IDs.
 
 ---
 
@@ -56,7 +56,7 @@ The workflow also runs on a **schedule** (4× daily UTC) and **`workflow_dispatc
 2. **Run workflow** → branch **main** → **Run workflow**.
 3. Open the run → expand **deploy** step → find your Worker URL (`https://…workers.dev`) in the log, or open **Workers & Pages** in Cloudflare and click the worker **hl-vs-etoro-proxy**.
 
-`wrangler.toml` already sets **oil** instrument **17** for `candle.etoro.com`. Add more variables in the Cloudflare dashboard (**Workers** → your worker → **Settings → Variables**) if needed.
+`wrangler.toml` ships with all **24/7** instrument IDs pre-configured (NQ=686, Gold=559, Silver=783, Oil=784, NatGas=782). Override in the Cloudflare dashboard (**Workers** → your worker → **Settings → Variables**) if needed.
 
 ### If work email / company policy blocks Cloudflare
 

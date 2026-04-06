@@ -7,7 +7,7 @@ Dashboard comparing Hyperliquid and eToro prices.
 From the repo root:
 
 - **Windows:** `powershell -ExecutionPolicy Bypass -File .\scripts\test-etoro-candle.ps1`  
-  Optional: `-InstrumentId 27` (default **17** = oil).
+  Optional: `-InstrumentId 27` (find the numeric ID for your instrument from eToro DevTools).
 
 - **macOS / Linux:** `bash scripts/test-etoro-candle.sh` or `bash scripts/test-etoro-candle.sh 17`
 
@@ -51,7 +51,7 @@ The Worker proxies `/hl`, `/etoro/*`, and `/health` so the browser only talks to
 
 **Deploy the Worker without installing anything locally:** follow **[DEPLOY.md](./DEPLOY.md)** (GitHub Actions + Cloudflare API token + repo secrets). Optional CLI steps: **`worker/README.md`**.
 
-Oil is preconfigured in `wrangler.toml` `[vars]`. In the Cloudflare dashboard you can add more instruments (`ETORO_INSTRUMENT_NQ`, `_GOLD`, `_NATGAS`, …) when you have IDs from eToro’s Network tab, or override `ETORO_CANDLE_HOST` / `ETORO_FUNCTIONS_BASE` (see `.env.example` concepts).
+All instruments use **24/7** eToro products with IDs in `wrangler.toml`: NQ=686, Gold=559, Silver=783, Oil=784, NatGas=782. Override in the Cloudflare dashboard if needed. In the Cloudflare dashboard you can add more instruments (`ETORO_INSTRUMENT_NQ`, `_GOLD`, `_NATGAS`, …) when you have IDs from eToro’s Network tab, or override `ETORO_CANDLE_HOST` / `ETORO_FUNCTIONS_BASE` (see `.env.example` concepts).
 
 Then open:
 

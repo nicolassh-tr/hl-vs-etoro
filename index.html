@@ -138,12 +138,13 @@ function hlUrl() {
 const ETORO_CANDLE_HOST_BROWSER = "https://candle.etoro.com";
 /** Path segment OneMinute/{n}: n = count of 1m bars (1440 ≈ 24h, same window as HL). */
 const ETORO_CANDLE_1M_BAR_COUNT = 1440;
-const ETORO_BROWSER_INSTRUMENT_DEFAULT = { nq: "", gold: "", oil: "17", natgas: "" };
+const ETORO_BROWSER_INSTRUMENT_DEFAULT = { nq: "686", gold: "559", silver: "783", oil: "784", natgas: "782" };
 const ETORO_FUNCTION_FILE = {
-  nq: "etoroCandles",
-  gold: "etoroGoldCandles",
-  oil: "etoroOilCandles",
-  natgas: "etoroNatGasCandles",
+  nq: "etoroNQ247Candles",
+  gold: "etoroGold247Candles",
+  silver: "etoroSilver247Candles",
+  oil: "etoroOil247Candles",
+  natgas: "etoroNatGas247Candles",
 };
 const ETORO_DEFAULT_FUNCTIONS_BASE = "https://sidekick-c26b0845.base44.app";
 const ETORO_FUNCTIONS_BASE = "";
@@ -344,7 +345,7 @@ function SkewSynopsis({ instruments }) {
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "12px 14px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
       <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Spread: eToro − HL · Live &amp; 2h Avg</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
         {instruments.map(({ label, icon, etCandles, hlCandles, decimals = 2 }) => {
           const hasEt = etCandles.length > 0;
           const hasHl = hlCandles.length > 0;
@@ -505,6 +506,14 @@ async function fetchHLNatGas() {
   return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
 }
 async function fetchEToroNatGas() { return fetchEtoroFeed("natgas"); }
+async function fetchHLSilver() {
+  const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
+  const res = await fetchWithTimeout(hlUrl(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "km:SILVER", interval: "1m", startTime: start, endTime: now } }) });
+  const raw = await res.json();
+  if (!raw || !Array.isArray(raw)) return [];
+  return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
+}
+async function fetchEToroSilver() { return fetchEtoroFeed("silver"); }
 function HLvsToro() {
   const [hlCandles, setHlCandles] = useState([]);
   const [etNQCandles, setEtNQCandles] = useState([]);
@@ -514,6 +523,8 @@ function HLvsToro() {
   const [etOilCandles, setEtOilCandles] = useState([]);
   const [hlNatGasCandles, setHlNatGasCandles] = useState([]);
   const [etNatGasCandles, setEtNatGasCandles] = useState([]);
+  const [hlSilverCandles, setHlSilverCandles] = useState([]);
+  const [etSilverCandles, setEtSilverCandles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadWarning, setLoadWarning] = useState(null);
@@ -531,13 +542,14 @@ function HLvsToro() {
     await resolveCachedEtoroFeed();
     try {
       const settled = await Promise.allSettled([
-        fetchHL(), fetchEToroNQ(), fetchHLGold(), fetchEToroGold(), fetchHLOil(), fetchEToroOil(), fetchHLNatGas(), fetchEToroNatGas()
+        fetchHL(), fetchEToroNQ(), fetchHLGold(), fetchEToroGold(), fetchHLOil(), fetchEToroOil(), fetchHLNatGas(), fetchEToroNatGas(), fetchHLSilver(), fetchEToroSilver()
       ]);
       const v = (i, fallback = []) => settled[i].status === "fulfilled" ? settled[i].value : fallback;
       setHlCandles(v(0)); setEtNQCandles(v(1));
       setHlGoldCandles(v(2)); setEtGoldCandles(v(3));
       setHlOilCandles(v(4)); setEtOilCandles(v(5));
       setHlNatGasCandles(v(6)); setEtNatGasCandles(v(7));
+      setHlSilverCandles(v(8)); setEtSilverCandles(v(9));
       const failed = settled.filter(r => r.status === "rejected");
       if (failed.length === settled.length) {
         setError(fetchErrorHint(failed[0].reason));
@@ -583,18 +595,21 @@ function HLvsToro() {
           </div>
         )}
         <SkewSynopsis instruments={[
-          { label: "NQ100",  icon: "📈", etCandles: etNQCandles,     hlCandles: hlCandles },
-          { label: "Gold",   icon: "🥇", etCandles: etGoldCandles,   hlCandles: hlGoldCandles },
-          { label: "Oil",    icon: "🛢️", etCandles: etOilCandles,    hlCandles: hlOilCandles },
-          { label: "NatGas", icon: "🔥", etCandles: etNatGasCandles, hlCandles: hlNatGasCandles, decimals: 3 },
+          { label: "NQ 24/7",     icon: "📈", etCandles: etNQCandles,     hlCandles: hlCandles },
+          { label: "Gold 24/7",   icon: "🥇", etCandles: etGoldCandles,   hlCandles: hlGoldCandles },
+          { label: "Silver 24/7", icon: "🥈", etCandles: etSilverCandles, hlCandles: hlSilverCandles, decimals: 3 },
+          { label: "Oil 24/7",    icon: "🛢️", etCandles: etOilCandles,    hlCandles: hlOilCandles },
+          { label: "NatGas 24/7", icon: "🔥", etCandles: etNatGasCandles, hlCandles: hlNatGasCandles, decimals: 3 },
         ]} />
-        <SectionHeader label="📈 NQ100 Index" />
+        <SectionHeader label="📈 NQ100 24/7" />
         <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlCandles} aSymbol="xyz:XYZ100" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etNQCandles} width={width} isMobile={isMobile} />
-        <SectionHeader label="🥇 Gold" />
+        <SectionHeader label="🥇 Gold 24/7" />
         <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlGoldCandles} aSymbol="xyz:GOLD" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etGoldCandles} width={width} isMobile={isMobile} />
-        <SectionHeader label="🛢️ Oil" />
+        <SectionHeader label="🥈 Silver 24/7" />
+        <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlSilverCandles} aSymbol="km:SILVER" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etSilverCandles} width={width} isMobile={isMobile} />
+        <SectionHeader label="🛢️ Oil 24/7" />
         <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlOilCandles} aSymbol="xyz:CL" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etOilCandles} width={width} isMobile={isMobile} />
-        <SectionHeader label="🔥 Natural Gas" />
+        <SectionHeader label="🔥 NatGas 24/7" />
         <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlNatGasCandles} aSymbol="xyz:NATGAS" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etNatGasCandles} width={width} isMobile={isMobile} />
         <div style={{ textAlign: "center", fontSize: 10, color: "#94a3b8", paddingBottom: 20, marginTop: 4 }}>Hyperliquid · eToro (your configured backend) · 1-min · Live</div>
       </div>

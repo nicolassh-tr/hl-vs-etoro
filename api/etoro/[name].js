@@ -8,22 +8,27 @@ const {
 const DEFAULT_FUNCTIONS_BASE = "https://sidekick-c26b0845.base44.app";
 
 const FUNCTION_FILE = {
-  nq: "etoroCandles",
-  gold: "etoroGoldCandles",
-  oil: "etoroOilCandles",
-  natgas: "etoroNatGasCandles",
+  nq: "etoroNQ247Candles",
+  gold: "etoroGold247Candles",
+  silver: "etoroSilver247Candles",
+  oil: "etoroOil247Candles",
+  natgas: "etoroNatGas247Candles",
 };
 
-/** Env: ETORO_INSTRUMENT_NQ, _GOLD, _OIL, _NATGAS — numeric IDs from etoro.com DevTools (candle.etoro.com …/2/{id}/…) */
 const INSTRUMENT_ENV = {
   nq: "ETORO_INSTRUMENT_NQ",
   gold: "ETORO_INSTRUMENT_GOLD",
+  silver: "ETORO_INSTRUMENT_SILVER",
   oil: "ETORO_INSTRUMENT_OIL",
   natgas: "ETORO_INSTRUMENT_NATGAS",
 };
 
 const DEFAULT_INSTRUMENT_ID = {
-  oil: "17",
+  nq: "686",
+  gold: "559",
+  silver: "783",
+  oil: "784",
+  natgas: "782",
 };
 
 async function fetchLegacyFunctions(name) {

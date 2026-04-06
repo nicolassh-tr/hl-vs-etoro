@@ -3,10 +3,11 @@ const HL_INFO = "https://api.hyperliquid.xyz/info";
 const ETORO_CANDLE_1M_BAR_COUNT = 1440;
 
 const FUNCTION_FILE = {
-  nq: "etoroCandles",
-  gold: "etoroGoldCandles",
-  oil: "etoroOilCandles",
-  natgas: "etoroNatGasCandles",
+  nq: "etoroNQ247Candles",
+  gold: "etoroGold247Candles",
+  silver: "etoroSilver247Candles",
+  oil: "etoroOil247Candles",
+  natgas: "etoroNatGas247Candles",
 };
 
 const DEFAULT_FUNCTIONS_BASE = "https://sidekick-c26b0845.base44.app";
@@ -14,12 +15,17 @@ const DEFAULT_FUNCTIONS_BASE = "https://sidekick-c26b0845.base44.app";
 const INSTRUMENT_ENV = {
   nq: "ETORO_INSTRUMENT_NQ",
   gold: "ETORO_INSTRUMENT_GOLD",
+  silver: "ETORO_INSTRUMENT_SILVER",
   oil: "ETORO_INSTRUMENT_OIL",
   natgas: "ETORO_INSTRUMENT_NATGAS",
 };
 
 const DEFAULT_INSTRUMENT_ID = {
-  oil: "17",
+  nq: "686",
+  gold: "559",
+  silver: "783",
+  oil: "784",
+  natgas: "782",
 };
 
 function normalizeCandleResponse(json) {
@@ -77,7 +83,7 @@ export default {
       });
     }
 
-    const m = path.match(/^\/etoro\/(nq|gold|oil|natgas)$/);
+    const m = path.match(/^\/etoro\/(nq|gold|silver|oil|natgas)$/);
     if (m) {
       if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405, headers: h });
       const key = m[1];
