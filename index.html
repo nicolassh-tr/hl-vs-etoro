@@ -485,7 +485,7 @@ async function fetchHLNatGas() {
 async function fetchEToroNatGas() { return fetchEtoroFeed("natgas"); }
 async function fetchHLSilver() {
   const now = Date.now(), start = now - 24 * 60 * 60 * 1000;
-  const res = await fetchWithTimeout(hlUrl(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "km:SILVER", interval: "1m", startTime: start, endTime: now } }) });
+  const res = await fetchWithTimeout(hlUrl(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: "xyz:SILVER", interval: "1m", startTime: start, endTime: now } }) });
   const raw = await res.json();
   if (!raw || !Array.isArray(raw)) return [];
   return raw.map(c => ({ t: c.t, time: new Date(c.t).toISOString().slice(11, 16), open: parseFloat(c.o), high: parseFloat(c.h), low: parseFloat(c.l), close: parseFloat(c.c) }));
@@ -608,7 +608,7 @@ function HLvsToro() {
         <SectionHeader label="🥇 Gold 24/7" />
         <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlGoldCandles} aSymbol="xyz:GOLD" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etGoldCandles} width={width} isMobile={isMobile} />
         <SectionHeader label="🥈 Silver 24/7" />
-        <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlSilverCandles} aSymbol="km:SILVER" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etSilverCandles} width={width} isMobile={isMobile} />
+        <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlSilverCandles} aSymbol="xyz:SILVER" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etSilverCandles} width={width} isMobile={isMobile} />
         <SectionHeader label="🛢️ Oil 24/7" />
         <InstrumentPanel aLabel="Hyperliquid" aTag="HL" aColor={HL_COLOR} aCandles={hlOilCandles} aSymbol="xyz:CL" bLabel="eToro" bTag="eT" bColor={ET_COLOR} bCandles={etOilCandles} width={width} isMobile={isMobile} />
         <SectionHeader label="🔥 NatGas 24/7" />
