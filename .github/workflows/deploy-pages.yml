@@ -45,6 +45,17 @@ jobs:
           mkdir -p _site
           cp index.html _site/
           cp cached-feed.json _site/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Password-protect HTML
+        env:
+          REPORT_USER: ${{ secrets.REPORT_USER }}
+          REPORT_PASS: ${{ secrets.REPORT_PASS }}
+        run: |
+          pip install cryptography
+          python scripts/protect_html.py _site/index.html _site/index.html \
+            -u "$REPORT_USER" -p "$REPORT_PASS" -t "HL vs eToro"
           echo "## Pages artifact" >> "$GITHUB_STEP_SUMMARY"
           ls -la _site >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
