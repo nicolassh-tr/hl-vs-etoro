@@ -26,11 +26,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "20"
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - name: Build static site (eToro cache + HTML)
         env:
           ETORO_INSTRUMENT_NQ: ${{ vars.ETORO_INSTRUMENT_NQ }}
@@ -45,7 +45,7 @@ jobs:
           mkdir -p _site
           cp index.html _site/
           cp cached-feed.json _site/
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Password-protect HTML
@@ -65,8 +65,8 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**cached-feed.json bytes:** $(wc -c < _site/cached-feed.json)" >> "$GITHUB_STEP_SUMMARY"
           echo "**updatedAt prefix:** $(head -c 80 _site/cached-feed.json)" >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
